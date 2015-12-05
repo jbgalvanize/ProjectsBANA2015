@@ -1,0 +1,699 @@
+---
+title: "Project 2"
+author: "Kyle Bartsch"
+date: "November 5, 2015"
+output: pdf_document
+---
+```{r global_options, echo=FALSE}
+knitr::opts_chunk$set(echo=TRUE, warning=FALSE, message=FALSE)
+```
+```{r libraries,echo=FALSE}
+library(ggplot2)
+library(RColorBrewer)
+library(pROC)
+library(ROCR)
+library(SDMTools)
+library(tree)
+library(rpart)
+library(rpart.plot)
+library(caret)
+library(boot)
+library(R.utils)
+library(randomForest)
+library(gbm)
+```
+<H3><u>Summary</u></H3>
+This dataset was pulled from the UC Irvine Machine Learning Repository: http://archive.ics.uci.edu/ml/index.html. It is compiled from data related to direct marketing campaigns of a Portuguese banking institution. The marketing campaigns were based on phone calls....The classification goal is to predict if the client will subscribe to a term deposit. 
+<H3><u>Data Import and Coding</u></H3>
+```{r data_load, echo=FALSE}
+File = NULL #dynamically pull file based on laptop vs. desktop 
+File = ifelse(Sys.info()["nodename"]=="ZUMA",
+             "C:/Users/Kyle/OneDrive/UCD/Analytics/Predictive Modeling/Project 2/Bank Marketing/Train_Data.csv",
+             "E:/OneDrive/UCD/Analytics/Predictive Modeling/Project 2/Bank Marketing/Train_Data.csv")
+d = read.csv(File)
+n = length(d$X)
+```
+<h4>Dataset Attributes:</h4>
+The data consists of <i>45211</i> observations of <i>`r length(names(d))-1`</i> variables. Half of the data was withheld as a test dataset for model validation. <br /><br />
+<u>Input variables:</u>
+<br /># bank client data:
+<br />1 - age (numeric)
+<br />2 - job : type of job (categorical: 'admin.','blue-collar','entrepreneur','housemaid','management','retired','self-employed','services','student','technician','unemployed','unknown')
+<br />3 - marital : marital status (categorical: 'divorced','married','single','unknown'; note: 'divorced' means divorced or widowed)
+<br />4 - education (categorical: 'basic.4y','basic.6y','basic.9y','high.school','illiterate','professional.course','university.degree','unknown')
+<br />5 - default: has credit in default? (categorical: 'no','yes','unknown')
+<br />6 - housing: has housing loan? (categorical: 'no','yes','unknown')
+<br />7 - loan: has personal loan? (categorical: 'no','yes','unknown')
+<br /># related with the last contact of the current campaign:
+<br />8 - contact: contact communication type (categorical: 'cellular','telephone') 
+<br />9 - month: last contact month of year (categorical: 'jan', 'feb', 'mar', ..., 'nov', 'dec')
+<br />10 - day_of_week: last contact day of the week (categorical: 'mon','tue','wed','thu','fri')
+<br />11 - duration: last contact duration, in seconds (numeric). Important note: this attribute highly affects the output target (e.g., if duration=0 then y='no'). Yet, the duration is not known before a call is performed. Also, after the end of the call y is obviously known. Thus, this input should only be included for benchmark purposes and should be discarded if the intention is to have a realistic predictive model.
+<br /># other attributes:
+<br />12 - campaign: number of contacts performed during this campaign and for this client (numeric, includes last contact)
+<br />13 - pdays: number of days that passed by after the client was last contacted from a previous campaign (numeric; 999 means client was not previously contacted)
+<br />14 - previous: number of contacts performed before this campaign and for this client (numeric)
+<br />15 - poutcome: outcome of the previous marketing campaign (categorical: 'failure','nonexistent','success')
+<br /># social and economic context attributes
+<br />16 - emp.var.rate: employment variation rate - quarterly indicator (numeric)
+<br />17 - cons.price.idx: consumer price index - monthly indicator (numeric) 
+<br />18 - cons.conf.idx: consumer confidence index - monthly indicator (numeric) 
+<br />19 - euribor3m: euribor 3 month rate - daily indicator (numeric)
+<br />20 - nr.employed: number of employees - quarterly indicator (numeric)
+
+<u>Output variable</u> (desired target):
+<br />21 - y - has the client subscribed a term deposit? (binary: 'yes','no')
+
+
+The online directions state that the "Duration" variable highly affects the output target and should be only used as a benchmark; it should removed if the intention is to develop a truly predictive model: 
+```{r}
+d = d[,-which(names(d) %in% c("X","Duration"))] #remove index and duration 
+summary(d)
+str(d)
+```
+<br />The data appears to be accurately coded: continuous variables are coded as integers or numbers and categorical variables are coded as factors. 
+
+<h4>Missing Values</h4>
+Let's see look at which variables are missing. For this dataset, missing values have been coded as "unknown":
+```{r variables_missing_values}
+m = matrix(data=NA,nrow=length(names(d)),ncol=2)
+dimnames(m) = list(names(d),c("Total Missing","Percent Missing"))        
+for(i in 1:nrow(m)){
+    l = length(d[,i])
+    u = length(which(d[,i]=="unknown"))
+    m[i,"Total Missing"] = u
+    m[i,"Percent Missing"] = round(u/l,digits=4)
+}
+m[m[,"Percent Missing"]!=0,]
+```
+<br />Here we see that we have 6 variables with missing values, ranging from under 1% missing up to just over 20% missing. "Default" is the most problematic variable here, with 20% of observations missing. At this point, we could try and imput missing values using techniques like tree-based methods or K-Nearest Neighbors. However, in the interest of exloring how different models can handle missing values, we will not attemp to make any imputations. 
+
+<h3><u>Exploratory Data Analysis</u></h3>
+<br />Now that we have updated incorrect datatypes and recoded missing data, let's do some exploratory data analysis by looking at univariate plots of the data.
+<h4>Univariate Plots</h4>
+```{r univariate_EDA, echo=FALSE,cache=TRUE}
+attach(d)
+par(mfrow=c(2,2)) #change output to 2X2
+hist(Age,col="grey",main="Age")
+barplot(table(Job),main="Job Type",las=2)
+barplot(table(Marital),main="Marital Status",las=2)
+barplot(table(Education),main="Education Level",las=2)
+barplot(table(Default),main="Credit Default Status")
+barplot(table(Housing),main="Has Housing Loan?")
+barplot(table(Loan),main="Has Personal Loan?")
+barplot(table(Contact),main="Contact Method")
+d$Month = factor(Month,levels=c("mar","apr","may","jun","jul","aug","sep","oct","nov","dec"))
+barplot(table(d$Month)[c("mar","apr","may","jun","jul","aug","sep","oct","nov","dec")]
+  ,main="Last Contact Month of Year",las=2)
+d$Day = factor(d$Day, c("mon","tue","wed","thu","fri"))
+barplot(table(d$Day)[c("mon","tue","wed","thu","fri")],main="Last Contact Day of Week")
+hist(Campaign,col="grey",main="Campaign")
+hist(pDays,col="grey",main="pDays")
+hist(Previous,col="grey",main="Previous")
+barplot(table(pOutcome),main="Outcome of Prior Campaign")
+hist(EmpVarRate,col="grey",main="Employment Variation Rate")
+hist(ConsPriceIdx,col="grey",main="Consumer Price Index")
+hist(ConsConfIndx,col="grey",main="Consumer Confidence Index")
+hist(Euribor3M,col="grey",main="Euribor 3 Month Rate")
+hist(NREmployed,col="grey",main="Number of Employees")
+barplot(table(Subscribed),main="Did the Client Subscribe?")
+```
+<br /><u>A few generalized conclusions from looking at univariate plots:</u>
+<ul>
+<li>Several variables are quite skewed/disproportionate: 
+<br />Default, Personal Loan, Campaign, pDays, Previous</li>
+<li>Most of these clients were not previously contacted</li>
+<li>pDays needs to be addressed. The instructions state that "if the client was not previously contacted, the variable is coded as "999". We will recode this varaible and make it more simple by splitting it into categories based on weeks since last contact:</li>
+</ul>
+```{r derived_pContact}
+d$pContact = as.factor(ifelse(d$pDays<=7,"1 Week",ifelse(d$pDays<=14,"2 Weeks",ifelse(d$pDays<=21,"3 Weeks",ifelse(d$pDays<=28,"4 Weeks","No Contact")))))
+d=d[,-which(names(d) %in% c("pDays"))] #remove pDays variable
+barplot(table(d$pContact),main="Weeks Passed Prev Campaign",las=2)
+```
+
+<h4>Bivariate Plots</h4>
+Now let's examine how each of our variables relates to the subscription rate by examining bivariate plots. 
+<br /> NOTE: <i>for each of the mosaic plots below (categorical predictors), a dotted red line has been included that marks the proportion of yes/no for the response accross all observations (~88.52%).</i> <br />
+```{r bivariate, echo=FALSE,cache=TRUE}
+th = scale_fill_manual(values=c("#0066FF","#339933","#CC3300")) #set the theme
+xang = theme(axis.text.x = element_text(angle = 90, hjust = 1)) #set the x-axis angle for labels
+bp = geom_boxplot() #assign boxplot variable
+bar = geom_bar(aes(fill=Subscribed),position="fill") #assign barchart variable
+noleg = theme(legend.position="none") #if I don't want a legend
+avg.res=prop.table(table(d$Subscribed))["no"] #what is the average % for no? 
+line = geom_hline(aes(yintercept=avg.res),color="#CC3300",linetype="dashed",size=1) #assign dotted line to variable
+an = annotate("text", x = 10, y = 0.92, label = "Avg Yes/No Split",colour="black") # annotation
+f = coord_flip() #if I want to flip the coordinates. 
+
+ggplot(d,aes(Subscribed,Age,fill=Subscribed))+ggtitle("Age vs. Subscription")+
+  bp+th+f+noleg
+   
+ggplot(d,aes(Job))+ggtitle("Subscription Rate by Job Type")+xlab("Job")+ylab("Proportion")+
+ bar+xang+line+th
+
+ggplot(d,aes(Marital))+ggtitle("Subscription Rate by Marital Status")+xlab("Marital Status")+ylab("Proportion")+
+  bar+xang+line+th
+  
+ggplot(d,aes(Education))+ggtitle("Subscription Rate by Education")+xlab("Education")+ylab("Proportion")+
+  bar+xang+line+th
+
+ggplot(d,aes(Default))+ggtitle("Subscription Rate by Default Status")+xlab("Default Status")+ylab("Proportion")+
+  bar+xang+line+th
+
+ggplot(d,aes(Housing))+ggtitle("Subscription Rate by Housing Loan Status")+xlab("Housing Loan Status")+ylab("Proportion")+
+  bar+xang+line+th
+
+ggplot(d,aes(Loan))+ggtitle("Subscription Rate by Person Loan Status")+xlab("Personal Loan Status")+ylab("Proportion")+
+  bar+xang+line+th
+
+ggplot(d,aes(Contact))+ggtitle("Subscription Rate by Contact Method")+xlab("Contact Method")+ylab("Proportion")+
+  bar+xang+line+th
+
+ggplot(d,aes(Month))+ggtitle("Subscription Rate by Month")+xlab("Month")+ylab("Proportion")+
+  bar+xang+line+th
+
+ggplot(d,aes(Day))+ggtitle("Subscription Rate by Day of Week")+xlab("Day of Week")+ylab("Proportion")+
+  bar+xang+line+th
+
+ggplot(d,aes(Subscribed,Campaign,fill=Subscribed))+ggtitle("Campaign vs. Subscription")+
+  bp+th+f
+
+#ggplot(d,aes(Subscribed,pDays,fill=Subscribed))+ggtitle("Total Days Passed vs. Subscription")+
+#  bp+th+f
+
+ggplot(d,aes(pContact))+ggtitle("Prior Campaign Contact vs. Subscription")+xlab("Prior Contact")+ylab("Proportion")+
+  bar+xang+line+th
+
+ggplot(d,aes(Subscribed,Previous,fill=Subscribed))+ggtitle("Previous Contacts Prior to Campaign vs. Subscription")+
+  bp+th+f
+
+ggplot(d,aes(pOutcome))+ggtitle("Outcome of Prior Campaign vs. Subscription")+xlab("Prior Outcome")+ylab("Proportion")+
+  bar+xang+line+th
+
+ggplot(d,aes(Subscribed,EmpVarRate,fill=Subscribed))+ggtitle("Employment Variation Rate vs. Subscription")+
+  bp+th+f
+
+ggplot(d,aes(Subscribed,ConsPriceIdx,fill=Subscribed))+ggtitle("Consumer Price Index vs. Subscription")+
+  bp+th+f
+
+ggplot(d,aes(Subscribed,ConsConfIndx,fill=Subscribed))+ggtitle("Consumer Confidence Index vs. Subscription")+
+  bp+th+f
+
+ggplot(d,aes(Subscribed,Euribor3M,fill=Subscribed))+ggtitle("Euribor 3 Month Rate vs. Subscription")+
+  bp+th+f
+
+ggplot(d,aes(Subscribed,NREmployed,fill=Subscribed))+ggtitle("Number of Employees vs. Subscription")+
+  bp+th+f
+```
+<br /><br /><u>A few generalized conclusions from looking at bivariate plots:</u>
+<br />The following variables exhibit variation in the response and may be strong predictors: 
+<ul>
+<li>Job - Retired and Student job types had higher rates of subscription compared to other job types. </li>
+<li>Default Status - Clients who have defaulted did not subscribe at all. </li>
+<li>Contact Method - Clients who were contacted by cell phone subscribed more than those by telephone. </li>
+<li>Month - March, April, September October and December have much higher rates of subscription than others.</li>
+<li>Prior Contact - Clients that had contact of any kind had much higher rates of subscription than those that were never contacted. </li>
+<li>Pervious - Clients that had been contacted in the previous campaign subscribed at a higher rate.</li>
+<li>Prior Outcome - Clients that subscribed in the prior campaign subscribed in this campaign at a higher rate.</li>
+<liEmployment Variation Rate - When the rate is low, more clients appear to subscribe and vice-a-versa.></li>
+<li>Euibor 3 Month Rate - The lower the rate, it appears the subscription rate increases. </li>
+<li>Number of Employees - Subscription rates seem to be higher at lower employment levels. </li>
+</ul>
+
+```{r cleanup1,echo=FALSE}
+rm(avg.res)
+rm(an)
+rm(bar)
+rm(bp)
+rm(f)
+rm(File)
+rm(line)
+rm(noleg)
+rm(th)
+rm(xang)
+rm(m)
+rm(i)
+rm(l)
+rm(u)
+```
+<h3><u>Modeling</u></h3>
+There are serveral different ways we can model a binary response variable. The classic model is Logistic Regression. For this project, we will be going further and also applying Classification Trees, Bagging, Random Forests and Gradient Boosting. The goal of using five different models is to compare how each model performs on the test dataset we have withheld.
+
+<h4>Assumptions</h4>
+For sceneraios that involve classification, there needs to be special consideration to the costs of False Positives vs. False Negatives. In this case, we intend to use the results of our models to send a direct mailer to potential bank customers. For a real-world scenario, we would have to determine the costs and benefits of producing a direct mailer, gaining a customer, not gaining a customer, increasing direct competition, etc. For our sake, we will assume that the cost of generating the mailer is much less than that of not gaining new customers. Furhter, if we assume that a new customer would generate revenue well beyond the cost of the mailer, and that customers not receiving the mailer will not consider our bank, then we can assume that False Negatives (not sending a mailer when they would have responded) are more costly than False Positives (sending the mailer, not having the customer respond). Additionally, we can assume that unless we reach out to a customer, perhaps they would choose a different bank, which would result in an increase in direct competition. Again, here we would want to minimize False Negatives. Therefore, for all modeling, we will set the cost of False Negatives as <b>2x</b> that of False Positives. 
+
+<h4>Train Set and Validation Set</h4>
+For modeling, we will split our dataset into 80% for training and 20% for validation: 
+```{r train_test_split}
+set.seed(72) #set seed for reproducibility
+train.ind = sample(nrow(d), nrow(d)/5) #split into 5ths
+train = d[-train.ind,] #assign training to 80%
+val = d[train.ind,] #assign validation to 20%
+uc.val = c(0,1)[unclass(val$Subscribed)] #create an unclassed vector of responses from val set
+```
+
+```{r,eval=FALSE,echo=FALSE,hidden=TRUE}
+base.mod = glm(Subscribed~1,data=train, family = binomial(link="logit"))
+summary(base.mod)
+base.pr = predict(base.mod,val,type="response")
+x = confusion.matrix(uc.val, base.pr, 0.5)[1:2,1:2] #create a confusion matrix based on 50% cutoff
+x
+round(x[2,2]/(x[1,2] + x[2,2]),4)*100
+round(x[2,1]/(x[2,1] + x[1,1]),4)*100
+round((x[1,1] + x[2,2])/(x[1,1] + x[1,2] + x[2,1] + x[2,2]),4)*100
+```
+<br />
+<h4>Logistic Regression</h4>
+We already have a good idea of which variables might be benficial in a model for this problem. However, we have to be wary of overfitting the model and should look at which variables might be the most predictive. Here we use forward selection to build the best models based on the AIC criterion: 
+```{r stepwise_selection, results="hide",cache=TRUE}
+full.model = glm(Subscribed~.-Subscribed,data=train,family=binomial(link="logit"))
+null.model = glm(Subscribed~1,data=train,family=binomial(link="logit"))
+step.model = step(null.model,scope=list(upper=full.model),data=train,direction="both")
+```
+```{r stepwise2,echo=FALSE,cache=TRUE}
+step.aic = as.data.frame(step.model$anova,row.names = c(rep(1:nrow(step.model$anova)))) #dump results to a data frame
+step.aic
+step.aic$variables_added = rep(1:nrow(step.model$anova)) #add an column for each variable added
+ggplot(step.aic,aes(variables_added,AIC))+geom_point()+geom_line(color="red")+ggtitle("Stepwise AIC by Total Variables Added")+xlim(0,13)
+```
+<br />
+Looks like we hit the minimum AIC around 6 or 7 variables added. There is little benfit to including more variables as we would increase the risk in overfitting the model. Let's build a Logistic Model using the first 7 varaibles from the stepwide method: 
+```{r logistic_modeling,cache=TRUE}
+log.mod = glm(Subscribed~NREmployed+pOutcome+Month+Contact+Day+pContact+Campaign, 
+              data=train, family = binomial(link="logit"))
+summary(log.mod)
+```
+<br />
+Here is a plot showing the data for the Logistic Model and how it would perform if we used a 50% probability threshold (blue vertical line) to classify our response: <br />
+```{r logistic_sig_curve,echo=FALSE,results="hide", cache=TRUE}
+plot(predict(log.mod, val, type = 'response'), val$Subscribed, ylab = 'Subscribed?'
+     , xlab = 'Predicted Probability of Subscribing', main = 'Logistic Model'
+     ,col=ifelse(predict(log.mod, val)>=.5 ,"red","black"),yaxt='n')
+axis(2, at = seq(1, 2, by = 1),labels = c("No","Yes"), las=2)
+abline(v = .5, col="blue", lty=5)
+```
+<br /> Obviously, this is without regard to the cost of False Postives and False Negatives. Instead, let's figure out the optimal threshold taking into account our assumption that False Negatives are twice as costly compared to False Positives:  
+```{r log_perf}
+require(caret)
+log.pr = predict(log.mod,val,type="response")
+log.pred = prediction(log.pr,val$Subscribed)
+log.perf = performance(log.pred,"tpr","fpr") 
+cost.perf = performance(log.pred, "cost", cost.fp = 1, cost.fn = 2) #assign cost of FN as 2x that of FP
+log.cut = log.pred@cutoffs[[1]][which.min(cost.perf@y.values[[1]])]#what cutoff based on cost.perf? 
+```
+<br />We should use a cutoff of `r round(log.cut,4)*100`% to optimize our model with regard to False Negatives. At this cutoff, the Logistic Model produces the following confusion matrix:
+```{r log_cm}
+x = confusion.matrix(uc.val, log.pr, log.cut)[1:2,1:2] #create a confusion matrix
+x
+```
+```{r echo=FALSE}
+log.tpr = round(x[2,2]/(x[1,2] + x[2,2]),4)
+log.fpr = round(x[2,1]/(x[2,1] + x[1,1]),4)
+log.accuracy = round((x[1,1] + x[2,2])/(x[1,1] + x[1,2] + x[2,1] + x[2,2]),4)
+```
+Now, let's see how using this cutoff affects our true postive and false positive rates on the ROC curve for the Logistic Model:
+```{r log_ROC,cache=TRUE}
+plot(log.perf,lwd=2, main="ROC:  Logistic Model",col="red")
+abline(a=0,b=1,col="black",lty=5)
+abline(v=log.fpr,col="dark blue",lty=1) # add vertical line corresponding to FPR
+abline(h=log.tpr,col="dark green",lty=1) #add horizontal line corresponding to TPR
+```
+<br /><br /><u>The Logistic Model has a True Positive Rate of `r log.tpr*100`%, a False Positive Rate of `r log.fpr*100`%, and is `r log.accuracy*100`% accurate. </u><br />
+<h4>Classification Trees</h4>
+Next we will build a decision tree to model the response. We start by building a decision tree using all of the predictors:
+```{r tree_function,echo=FALSE}
+#Min Ma on https://rpubs.com/minma/cart_with_rpart --- totally stole this...
+only_count <- function(x, labs, digits, varlen)
+{
+  paste(x$frame$n)
+}
+```
+```{r tree_model,cache=TRUE}
+tree.mod = rpart(Subscribed~.-Subscribed, method = "class",data = train)
+printcp(tree.mod)
+plotcp(tree.mod)
+
+boxcols <- c("pink", "palegreen3")[tree.mod$frame$yval]
+par(xpd=TRUE)
+prp(tree.mod, faclen = 0, cex = 0.8, node.fun=only_count, box.col = boxcols)
+legend("bottomleft", legend = c("No","Yes"), fill = c("pink", "palegreen3"),
+       title = "Group")
+```
+<br />Here we see that the Tree Model only used two variables: NREmployed and pContact. With classification trees, it is possible that we could overfit our model. In this case, our model is quite simple: if NREmployed is less than 5088 and the client was contacted previously, we predict they will subscribe. However, just to be sure we are not overfitting the data, let's prune the tree and see if there is a more simple version with just as much predictive power:
+```{r pruned_tree,cache=TRUE}
+min.cp = tree.mod$cptable[which.min(tree.mod$cptable[,"xerror"]),"CP"] #which tree has the min cp?
+p.tree.mod = prune(tree.mod,cp=min.cp) 
+boxcols = c("pink", "palegreen3")[p.tree.mod$frame$yval]
+par(xpd=TRUE)
+prp(p.tree.mod, faclen = 0, cex = 0.8, node.fun=only_count, box.col = boxcols)
+legend("bottomleft", legend = c("No","Yes"), fill = c("pink", "palegreen3"),
+       title = "Group")
+```
+<br /><br />In this case, our original tree does not need to be pruned. Now let's see which cutoff should be used for classification:  
+```{r}
+tree.pr = predict(p.tree.mod,newdata=val,type="prob")[,2] #pull out probabilities in column 2
+tree.pred = prediction(tree.pr,val$Subscribed)
+tree.perf = performance(tree.pred,"tpr","fpr")
+cost.perf = performance(tree.pred, "cost", cost.fp = 1, cost.fn = 2) #perf based on 2x cost of FN
+tree.cut = tree.pred@cutoffs[[1]][which.min(cost.perf@y.values[[1]])] #which cut should I use?
+```
+<br />We should use a cutoff of `r round(tree.cut,4)*100`% to optimize our Tree model with regard to False Negatives. At this cutoff, the Tree Model produces the following confusion matrix:
+```{r tree_performance,cache=TRUE}
+x = confusion.matrix(uc.val, tree.pr, tree.cut)[1:2,1:2] 
+x
+```
+```{r echo=FALSE}
+tree.tpr = round(x[2,2]/(x[1,2] + x[2,2]),4)
+tree.fpr = round(x[2,1]/(x[2,1] + x[1,1]),4)
+tree.accuracy = round((x[1,1] + x[2,2])/(x[1,1] + x[1,2] + x[2,1] + x[2,2]),4)
+```
+Now, let's see how using this cutoff affects our true postive and false positive rates on the ROC curve for the Tree Model:
+```{r tree_ROC,cache=TRUE}
+plot(tree.perf,lwd=2,col="red", main="ROC:  Classification Tree")
+plot(log.perf, lwd=2,col="grey",add=TRUE)
+abline(a=0,b=1,col="black",lty=5)
+abline(v=tree.fpr,col="dark blue",lty=1)
+abline(h=tree.tpr,col="dark green",lty=1)
+legend("bottomright", legend = c("Tree","Other Models")
+       , fill = c("Red", "Grey")
+       ,title = "Models")
+```
+<br /><br /><u>The Tree Model has a True Positive Rate of `r tree.tpr*100`%, a False Positive Rate of `r tree.fpr*100`%, and is `r tree.accuracy*100`% accurate.</u>  
+
+<br /><h4>Bagging Model</h4>
+With Bagging, we will use bootstrap aggregating of our data to build an ensemble of classification trees. We will let each tree be built with all the varaibles in the data:  
+```{r bagging_model,eval=TRUE,cache=TRUE}
+p = dim(d)[2]-1 #how many variables are available?
+bagging.mod = randomForest(Subscribed~.,data=train,mtry=p,importance=TRUE)
+print(bagging.mod)
+varImpPlot(bagging.mod,main="Bagging Importance Plot")
+importance(bagging.mod)
+```
+<br />Next, let's figure out what threshold we should use:
+```{r bagging_perf,eval=TRUE,cache=TRUE}
+bag.pr = predict(bagging.mod,val,type="prob")[,2] #pull probabilities out of column 2
+bag.pred = prediction(bag.pr,val$Subscribed)
+bag.perf = performance(bag.pred,"tpr","fpr")
+cost.perf = performance(bag.pred, "cost", cost.fp = 1, cost.fn = 2)
+bag.cut = bag.pred@cutoffs[[1]][which.min(cost.perf@y.values[[1]])]
+```
+<br />We should use a cutoff of `r round(bag.cut,4)*100`% to optimize our Bagging model with regard to False Negatives. At this cutoff, the Bagging Model produces the following confusion matrix:
+```{r bag_cm}
+x = confusion.matrix(uc.val, bag.pr, bag.cut)[1:2,1:2] 
+x
+```
+```{r echo=FALSE}
+bag.tpr = round(x[2,2]/(x[1,2] + x[2,2]),4)
+bag.fpr = round(x[2,1]/(x[2,1] + x[1,1]),4)
+bag.accuracy = round((x[1,1] + x[2,2])/(x[1,1] + x[1,2] + x[2,1] + x[2,2]),4)
+```
+Now, let's see how using this cutoff affects our True Postive and False Positive rates on the ROC curve for the Bagging Model:
+```{r bag_ROC,cache=TRUE}
+plot(bag.perf,main="ROC Curve for Bagging Model",col="red",lwd=2)
+plot(log.perf,col="grey",add=TRUE)
+plot(tree.perf,col="grey",add=TRUE)
+abline(a=0,b=1,col="black",lty=5)
+abline(v=bag.fpr,col="dark blue",lty=1)
+abline(h=bag.tpr,col="dark green",lty=1)
+legend("bottomright", legend = c("Bagging","Other Models")
+       , fill = c("Red", "Grey")
+       ,title = "Models")
+```
+<br /><br /><u>The Bagging Model has a True Positive Rate of `r bag.tpr*100`%, a False Positive Rate of `r bag.fpr*100`%, and is `r bag.accuracy*100`% accurate.</u><br />  
+
+<h4>Random Forest</h4>
+For a Random Forest model, we will use bootstrap aggregating to build an ensemble of classification trees but, unlike Bagging, we will not allow the model to use all the parameters at each node split. Instead, we will provide a random sample of our independent variables which will be equal to the square root of the total variables: 
+```{r rf_model,eval=TRUE,cache=TRUE}
+p = sqrt(p)
+rf.mod = randomForest(Subscribed~.,data=train,mtry=p,importance=TRUE,type="prob")
+print(rf.mod)
+```
+The Random Forests model includes Importance Plots indicating which variables are most important to the overall ensemble model:
+```{r rf_importance,eval=TRUE,cache=TRUE,echo=FALSE}
+varImpPlot(rf.mod,main="Random Forest Importance Plot")
+importance(rf.mod)
+```
+<br />Now let's figure out the optimal cutoff for the Random Forest Model: 
+```{r rf_perf}
+rf.pr = predict(rf.mod,val,type="prob")[,2]
+rf.pred = prediction(rf.pr,val$Subscribed)
+rf.perf = performance(rf.pred,"tpr","fpr")
+cost.perf = performance(rf.pred, "cost", cost.fp = 1, cost.fn = 2)
+rf.cut = rf.pred@cutoffs[[1]][which.min(cost.perf@y.values[[1]])]
+```
+<br />We should use a cutoff of `r round(rf.cut,4)*100`% to optimize our Random Forest model with regard to False Negatives. At this cutoff, the Random Forest Model produces the following confusion matrix:
+```{r}
+x = confusion.matrix(uc.val, rf.pr, rf.cut)[1:2,1:2] 
+x
+```
+```{r echo=FALSE}
+rf.tpr = round(x[2,2]/(x[1,2] + x[2,2]),4)
+rf.fpr = round(x[2,1]/(x[2,1] + x[1,1]),4)
+rf.accuracy = round((x[1,1] + x[2,2])/(x[1,1] + x[1,2] + x[2,1] + x[2,2]),4)
+```
+Now, let's see how using this cutoff affects our true postive and false positive rates on the ROC curve for the Random Forest Model:
+```{r rf_ROC,eval=TRUE,cache=TRUE}
+plot(rf.perf,main="ROC Curve for Random Forest",col="red",lwd=2)
+plot(log.perf,col="grey",add=TRUE)
+plot(tree.perf,col="grey",add=TRUE)
+plot(bag.perf,col="grey",add=TRUE)
+abline(a=0,b=1,col="black",lty=5)
+abline(v=rf.fpr,col="dark blue",lty=1)
+abline(h=rf.tpr,col="dark green",lty=1)
+legend("bottomright", legend = c("Random Forest","Other Models")
+       , fill = c("Red", "Grey")
+       ,title = "Models")
+
+```
+<br /><br /><u>The Random Forest Model has a True Positive Rate of `r rf.tpr*100`%, a False Positive Rate of `r rf.fpr*100`%, and is `r rf.accuracy*100`% accurate. </u><br />
+
+<h4>Gradient Boosting</h4>
+```{r unclassed_training_sets, echo=FALSE}
+train2 = train[-19]
+train2$Subscribed2 = c(0,1)[unclass(train$Subscribed)]
+val2 = val[-19]
+val2$Subscribed2 = c(0,1)[unclass(val$Subscribed)]
+```
+Gradient Boosing is another tree based method that uses ensemble aggregating. However, unlike Random Forests, the model can be easily overfit. There are three parameters that must be tuned to optimize performance: 1) Tree Depth 2) Number of Trees to Build and 3) Shrinkage. Here we use the caret package to tune the three parameters using 5-fold cross-validation: 
+```{r gbm_tuning,eval=TRUE,cache=TRUE}
+fitControl = trainControl(method='CV', #use cross validation
+                           number=5, #set the number of folds
+                           summaryFunction = twoClassSummary, #use two-class classification
+                           classProbs = TRUE) #return probabilities
+gbmGrid =  expand.grid(interaction.depth=c(1,2,3), #which tree depth values to try
+                        n.trees = (1:20)*50, #how many values of n.trees to try
+                        shrinkage = 0.1, #what shrinkage value to try
+                        n.minobsinnode = 20)
+gbmFit = train(Subscribed ~ .,data = train,method='gbm',trControl=fitControl
+                 ,metric="ROC",tuneGrid=gbmGrid,verbose=FALSE) #use ROC as metric to select best tree
+gbmFit$bestTune #what was the best tune?
+plot(gbmFit)
+r = which.max(gbmFit$results[,"ROC"])#which combo had the best ROC?
+ntrees = gbmFit$results[r,"n.trees"] #what was the # of trees?
+depth = gbmFit$results[r,"interaction.depth"] #how deep were the trees?
+shrink = gbmFit$results[r,"shrinkage"] #what was the shrinkage?
+```
+<br />We see that the optimal Boosting Model includes `r ntrees` trees, each built `r depth` nodes deep with a shinkage parameter of `r shrink`. With Boosting, we can also look at which variables had the most significant influence in the model. Here are the top 10 variables:
+```{r gbm_summary}
+summary(gbmFit)[1:10,] #what are the top 10 variables?
+```
+<br />Now that we have tuned the Boosting parameters, we can build the actual model: 
+```{r gbm_model,eval=TRUE,cache=TRUE}
+gmb.model = gbm(Subscribed2~., data=train2,n.trees=ntrees,interaction.depth =depth,shrinkage=shrink
+                ,distribution = "bernoulli")
+```
+<br />Let's see what cutoff should be used:
+```{r}
+boost.probs = predict(gmb.model, val2, n.trees=ntrees,interaction.depth=depth,shrinkage=shrink
+                      , type="response")
+gbm.pred = prediction(boost.probs,val$Subscribed)
+gbm.perf = performance(gbm.pred,"tpr","fpr")
+cost.perf = performance(gbm.pred, "cost", cost.fp = 1, cost.fn = 2)
+gbm.cut = gbm.pred@cutoffs[[1]][which.min(cost.perf@y.values[[1]])]
+```
+<br />We should use a cutoff of `r round(gbm.cut,4)*100`% to optimize our Boosting model with regard to False Negatives. At this cutoff, the Boosting Model produces the following confusion matrix:
+```{r gbm_perf,eval=TRUE,cache=TRUE}
+x = confusion.matrix(uc.val, boost.probs, gbm.cut)[1:2,1:2] 
+x
+```
+```{r echo=FALSE}
+gbm.tpr = round(x[2,2]/(x[1,2] + x[2,2]),4)
+gbm.fpr = round(x[2,1]/(x[2,1] + x[1,1]),4)
+gbm.accuracy = round((x[1,1] + x[2,2])/(x[1,1] + x[1,2] + x[2,1] + x[2,2]),4)
+```
+Now, let's see how using this cutoff affects our true postive and false positive rates on the ROC curve for the Boosting Model:
+```{r gbm_ROC, eval=TRUE,cache=TRUE}
+plot(gbm.perf,main="ROC Curve for Gradient Boosting Model",col="red",lwd=2)
+plot(log.perf,col="grey",add=TRUE)
+plot(tree.perf,col="grey",add=TRUE)
+plot(bag.perf,col="grey",add=TRUE)
+plot(rf.perf,col="grey",add=TRUE)
+abline(a=0,b=1,col="black",lty=5)
+abline(v=gbm.fpr,col="dark blue",lty=1)
+abline(h=gbm.tpr,col="dark green",lty=1)
+legend("bottomright", legend = c("Gradient Boosting","Other Models")
+       , fill = c("Red", "Grey")
+       ,title = "Models")
+```
+<br /><br /><u>The Boosting Model has a True Positive Rate of `r gbm.tpr*100`%, a False Positive Rate of `r gbm.fpr*100`%, and is `r gbm.accuracy*100`% accurate. </u>
+<br /><br />
+<h3><u>Model Comparision Summary</u></h3>
+```{r summary, echo=FALSE}
+mod = c("Logistic","Trees","Bagging","Forests","Boosting")
+col = c("Orange", "Purple","Green","Red","Blue")
+log.vars = c("NREmployed","pOutcome","Month","Contact","Day")
+tree.vars = c("NREmployed","pContact","NA","NA","NA")
+bag.vars = c("Age","NREmployed","Euribor3M","Campaign","Job")
+rf.vars = c("Age","Euribor3M","Job","NREmployed","Education")
+gbm.vars = c("NREmployed","Euribor3M","Age","pContact","ConsConfIndx")
+topvars = data.frame(log.vars,tree.vars,bag.vars,rf.vars,gbm.vars)
+
+```
+<h4>Top 5 Variables from Each Model:</h4>
+```{r, echo=FALSE}
+topvars
+```
+```{r valmod_ROC,cache=TRUE,echo=FALSE}
+plot(log.perf, xlab = 'False Positive Rate', ylab = 'True Positive Rate'
+     , main = 'Validation ROC Comparisons', type = 'l', lwd = 2, col = 'Orange')
+plot(tree.perf,lwd=2,col="Purple",add=TRUE)
+plot(bag.perf,lwd=2,col="Green",add=TRUE)
+plot(rf.perf,lwd=2,col="Red",add=TRUE)
+plot(gbm.perf,lwd=2,col="Blue",add=TRUE)
+abline(a=0,b=1,col="black",lty=5)
+legend("bottomright", legend = mod, fill = col,title = "Models")
+```
+
+```{r valmod_fpr,echo=FALSE}
+a = c(log.fpr,tree.fpr,bag.fpr,rf.fpr,gbm.fpr)
+barplot(a,names.arg = mod,las=2,main="False Positive Rates",col=col,xpd=FALSE)
+data.frame(cbind(mod,a))
+```
+
+```{r valmod_tpr,echo=FALSE}
+a = c(log.tpr,tree.tpr,bag.tpr,rf.tpr,gbm.tpr)
+barplot(a,names.arg = mod,las=2,main="True Positive Rates",col=col,xpd=FALSE)
+data.frame(cbind(mod,a))
+```
+
+```{r valmod_accuracy,echo=FALSE}
+a = c(log.accuracy,tree.accuracy,bag.accuracy,rf.accuracy,gbm.accuracy)
+barplot(a,names.arg=mod,las=2,main="Validation Model Accuracy",ylim=c(0.75,0.9),col=col,xpd=FALSE)
+data.frame(cbind(mod,a))
+```
+<h4>Expectations for Test Data</h4>
+From these results, we expect that the Gradient Boosting Model will perform best: it has the lowest False Postive Rate, has a True Postive rate comparable to most other models, and has the highest accuracy. The next best model might be Bagging for the same reasons. 
+
+<h3>Model Testing</h3>
+```{r test_data,echo=FALSE}
+File = NULL #dynamically set file based on computer source 
+File = ifelse(Sys.info()["nodename"]=="ZUMA",
+             "C:/Users/Kyle/OneDrive/UCD/Analytics/Predictive Modeling/Project 2/Bank Marketing/Test_Data.csv",
+             "E:/OneDrive/UCD/Analytics/Predictive Modeling/Project 2/Bank Marketing/Test_Data.csv")
+test = read.csv(File)
+test = test[,-which(names(test) %in% c("X","Duration"))] #get rid of index and duration
+test$pContact = as.factor(ifelse(test$pDays<=7,"1 Week",ifelse(test$pDays<=14,"2 Weeks",ifelse(test$pDays<=21,"3 Weeks",ifelse(test$pDays<=28,"4 Weeks","No Contact")))))
+test=test[,-which(names(test) %in% c("pDays"))]
+uc.test = c(0,1)[unclass(test$Subscribed)] 
+test2 = test[-19]
+test2$Subscribed2 = c(0,1)[unclass(test$Subscribed)]
+```
+<h4>Logistic:</h4>
+```{r logistic_test,cache=TRUE}
+log.test =  predict(log.mod,test,type="response")
+x = confusion.matrix(uc.test, log.test, log.cut)[1:2,1:2] #create a confusion matrix
+x
+```
+```{r echo=FALSE}
+log.t.tpr = round(x[2,2]/(x[1,2] + x[2,2]),4)
+log.t.fpr = round(x[2,1]/(x[2,1] + x[1,1]),4)
+log.t.accuracy = round((x[1,1] + x[2,2])/(x[1,1] + x[1,2] + x[2,1] + x[2,2]),4)
+log.t.pred = prediction(log.test,test$Subscribed)
+log.t.perf = performance(log.t.pred,"tpr","fpr")
+```
+
+<h4>Classification Trees:</h4>
+```{r tree_test,cache=TRUE}
+tree.test = predict(p.tree.mod,newdata=test,type="prob")[,2]
+x = confusion.matrix(uc.test, tree.test, tree.cut)[1:2,1:2] 
+x
+```
+```{r echo=FALSE}
+tree.t.tpr = round(x[2,2]/(x[1,2] + x[2,2]),4)
+tree.t.fpr = round(x[2,1]/(x[2,1] + x[1,1]),4)
+tree.t.accuracy = round((x[1,1] + x[2,2])/(x[1,1] + x[1,2] + x[2,1] + x[2,2]),4)
+tree.t.pred = prediction(tree.test,test$Subscribed)
+tree.t.perf = performance(tree.t.pred,"tpr","fpr")
+```
+
+<h4>Bagging:</h4>
+```{r bagging_test,cache=FALSE}
+bag.test = predict(bagging.mod,test,type="prob")[,2]
+x = confusion.matrix(uc.test,bag.test, bag.cut)[1:2,1:2] 
+x
+bag.t.tpr = round(x[2,2]/(x[1,2] + x[2,2]),4)
+bag.t.fpr = round(x[2,1]/(x[2,1] + x[1,1]),4)
+bag.t.accuracy = round((x[1,1] + x[2,2])/(x[1,1] + x[1,2] + x[2,1] + x[2,2]),4)
+bag.t.pred = prediction(bag.test,test$Subscribed)
+bag.t.perf = performance(bag.t.pred,"tpr","fpr")
+```
+
+<h4>Random Forests:</h4>
+```{r rf_test,cache=TRUE}
+rf.test = predict(rf.mod,test,type="prob")[,2]
+x = confusion.matrix(uc.test, rf.test, rf.cut)[1:2,1:2] 
+x
+rf.t.tpr = round(x[2,2]/(x[1,2] + x[2,2]),4)
+rf.t.fpr = round(x[2,1]/(x[2,1] + x[1,1]),4)
+rf.t.accuracy = round((x[1,1] + x[2,2])/(x[1,1] + x[1,2] + x[2,1] + x[2,2]),4)
+rf.t.pred = prediction(rf.test,test$Subscribed)
+rf.t.perf = performance(rf.t.pred,"tpr","fpr")
+```
+
+<h4>Boosting:</h4>
+```{r gbm_test,cache=TRUE}
+boost.test = predict(gmb.model, test2, n.trees=ntrees,interaction.depth=depth,shrinkage=shrink
+                      , type="response")
+x = confusion.matrix(test2$Subscribed2, boost.test,gbm.cut)[1:2,1:2] 
+x
+gbm.t.tpr = round(x[2,2]/(x[1,2] + x[2,2]),4)
+gbm.t.fpr = round(x[2,1]/(x[2,1] + x[1,1]),4)
+gbm.t.accuracy = round((x[1,1] + x[2,2])/(x[1,1] + x[1,2] + x[2,1] + x[2,2]),4)
+gbm.t.pred = prediction(boost.test,test$Subscribed)
+gbm.t.perf = performance(gbm.t.pred,"tpr","fpr")
+```
+
+<h3><u>Model Comparision Summary</u></h3>
+
+```{r tmod_ROC,cache=TRUE,echo=FALSE}
+plot(log.t.perf, xlab = 'False Positive Rate', ylab = 'True Positive Rate'
+     , main = 'Test ROC Comparisons', type = 'l', lwd = 2, col = 'Orange')
+plot(tree.t.perf,lwd=2,col="Purple",add=TRUE)
+plot(bag.perf,lwd=2,col="Green",add=TRUE)
+plot(rf.perf,lwd=2,col="Red",add=TRUE)
+plot(gbm.perf,lwd=2,col="Blue",add=TRUE)
+abline(a=0,b=1,col="black",lty=5)
+legend("bottomright", legend = mod , fill = col, title = "Models")
+```
+
+```{r tmod_fpr,echo=FALSE}
+a = c(log.t.fpr,tree.t.fpr,bag.t.fpr,rf.t.fpr,gbm.t.fpr)
+barplot(a,names.arg = mod,las=2,main="False Positive Rates",col=col,xpd=FALSE)
+data.frame(cbind(mod,a))
+```
+
+```{r tmod_tpr,echo=FALSE}
+a = c(log.t.tpr,tree.t.tpr,bag.t.tpr,rf.t.tpr,gbm.t.tpr)
+barplot(a,names.arg = mod,las=2,main="True Positive Rates",col=col,xpd=FALSE)
+data.frame(cbind(mod,a))
+```
+
+```{r tmod_accuracy,echo=FALSE}
+a = c(log.t.accuracy,tree.t.accuracy,bag.t.accuracy,rf.t.accuracy,gbm.t.accuracy)
+barplot(a,names.arg = mod,las=2,ylim=c(0.75,0.95),main="Validation Model Accuracy",col=col,xpd=FALSE)
+data.frame(cbind(mod,a))
+```
+<h4>Results</h4>
+As we anticipated, the Gradient Boosting Model had the best performance on the Test Data: it had the lowest False Positive Rate and highest accuracy. The fact that it had the lowest True Positive Rate is not concerning as our assumptions guided us to mimimize the False Positives. Interestingly, the Bagging model did not perform nearly as well as anticipated. Its False Positive Rate was the highest and its accuracy was the lowest. Perhaps the model was overfit, which is always a conern with Bagging. Instead, the Logistic Model was second best: it had the second lowest False Positive Rate, almost tied for second highest True Positive Rate, and the second highest Accuracy. 
+<h3><u>Conclusion</u></h3>
+We have developed several classification models to predict a binary response. Each of the models we used have particular aspects that must be tuned to ensure the model performs well on unseen data. Even when these models are properly tuned, they must also be adapted to the inherient costs and tradeoffs of False Positives and False Negatives. In this case, we choose to minimize False Positives and tuned our models accordingly. 
