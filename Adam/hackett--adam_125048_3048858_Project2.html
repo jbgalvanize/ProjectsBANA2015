@@ -1,0 +1,1437 @@
+<html>
+
+<head>
+<style type="text/css">
+.knitr .inline {
+  background-color: #f7f7f7;
+  border:solid 1px #B0B0B0;
+}
+.error {
+	font-weight: bold;
+	color: #FF0000;
+}
+.warning {
+	font-weight: bold;
+}
+.message {
+	font-style: italic;
+}
+.source, .output, .warning, .error, .message {
+	padding: 0 1em;
+  border:solid 1px #F7F7F7;
+}
+.source {
+  background-color: #f5f5f5;
+}
+.rimage .left {
+  text-align: left;
+}
+.rimage .right {
+  text-align: right;
+}
+.rimage .center {
+  text-align: center;
+}
+.hl.num {
+  color: #AF0F91;
+}
+.hl.str {
+  color: #317ECC;
+}
+.hl.com {
+  color: #AD95AF;
+  font-style: italic;
+}
+.hl.opt {
+  color: #000000;
+}
+.hl.std {
+  color: #585858;
+}
+.hl.kwa {
+  color: #295F94;
+  font-weight: bold;
+}
+.hl.kwb {
+  color: #B05A65;
+}
+.hl.kwc {
+  color: #55aa55;
+}
+.hl.kwd {
+  color: #BC5A65;
+  font-weight: bold;
+}
+</style>
+<title>Project 2 - Adam Hackett & Chip Huggins</title>
+</head>
+
+<body>
+
+<p>Our second project is to predict sales for Rossmann stores trying multiple models, based on what we learned in our Predictive Analytics class.  We decided to predict sales based on <b>Logistic Regression, Multiple Linear Regression, Regression Tree, and Random Forest</b> models. We decided to pick a dataset from the open Kaggle competitions and to submit our model after the class.  The dataset we choose was based on the open competitions and the factor of a chance to win money.</p>
+
+<div class="chunk" id="unnamed-chunk-1"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">data</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">read.csv</span><span class="hl std">(</span><span class="hl str">'train 2.csv'</span><span class="hl std">)</span>
+<span class="hl kwd">library</span><span class="hl std">(ggplot2)</span>
+<span class="hl kwd">attach</span><span class="hl std">(data)</span>
+<span class="hl kwd">dim</span><span class="hl std">(data)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 1017209      18
+</pre></div>
+</div></div>
+
+<p>The dataset has 18 variables and 1,017,209 observations.</p>
+
+<div class="chunk" id="unnamed-chunk-2"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">str</span><span class="hl std">(data)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 'data.frame':	1017209 obs. of  18 variables:
+##  $ Store                    : int  1 2 3 4 5 6 7 8 9 10 ...
+##  $ DayOfWeek                : int  5 5 5 5 5 5 5 5 5 5 ...
+##  $ Date                     : Factor w/ 942 levels &quot;1/1/13&quot;,&quot;1/1/14&quot;,..: 802 802 802 802 802 802 802 802 802 802 ...
+##  $ Sales                    : int  5263 6064 8314 13995 4822 5651 15344 8492 8565 7185 ...
+##  $ Customers                : int  555 625 821 1498 559 589 1414 833 687 681 ...
+##  $ Open                     : int  1 1 1 1 1 1 1 1 1 1 ...
+##  $ Promo                    : int  1 1 1 1 1 1 1 1 1 1 ...
+##  $ StateHoliday             : Factor w/ 4 levels &quot;0&quot;,&quot;a&quot;,&quot;b&quot;,&quot;c&quot;: 1 1 1 1 1 1 1 1 1 1 ...
+##  $ SchoolHoliday            : int  1 1 1 1 1 1 1 1 1 1 ...
+##  $ StoreType                : Factor w/ 4 levels &quot;a&quot;,&quot;b&quot;,&quot;c&quot;,&quot;d&quot;: 3 1 1 3 1 1 1 1 1 1 ...
+##  $ Assortment               : Factor w/ 3 levels &quot;a&quot;,&quot;b&quot;,&quot;c&quot;: 1 1 1 3 1 1 3 1 3 1 ...
+##  $ CompetitionDistance      : int  1270 570 14130 620 29910 310 24000 7520 2030 3160 ...
+##  $ CompetitionOpenSinceMonth: int  9 11 12 9 4 12 4 10 8 9 ...
+##  $ CompetitionOpenSinceYear : int  2008 2007 2006 2009 2015 2013 2013 2014 2000 2009 ...
+##  $ Promo2                   : int  0 1 1 0 0 0 0 0 0 0 ...
+##  $ Promo2SinceWeek          : int  0 13 14 0 0 0 0 0 0 0 ...
+##  $ Promo2SinceYear          : int  0 2010 2011 0 0 0 0 0 0 0 ...
+##  $ PromoInterval            : Factor w/ 4 levels &quot;0&quot;,&quot;Feb,May,Aug,Nov&quot;,..: 1 3 3 1 1 1 1 1 1 1 ...
+</pre></div>
+</div></div>
+
+<p>We can see there are two different types of variables in this dataset: Factor (categorical) and integer.</p>
+
+<ul>
+    <li>Sales is an integer and the variable we are predicting.
+    <li>Store is an integer the variable we need to include in our model in order to predict Sales by Store.
+    <li>DayOfWeek is an integer and the number corresponds as follows: 1 = Monday, through 7 = Sunday
+    <li>Date is a factor and the date.  We can exclude this variable since the test data has new Dates.
+    <li>Customers is an integer and the number of customers that visited a particular store on a particular day.  Based on EDA, this variable would be most useful to predict Sales by Store; unfortunately, this variable is not included on the test data.
+    <li>Open is an integer that corresponds as 0 = Store not open, and 1 = Store was open.  When this variable is 0, Sales will obviously also be 0.
+    <li>Promo is an integer that corresponds as 0 = no Promo, 1 = Promo.
+    <li>StateHoliday is a factor with 4 levels: 0 = none, a = Public, b = Easter, c = Christmas.
+    <li>SchoolHoliday is an integer that corresponds as 0 = none, 1 = yes.
+    <li>StoreType is a factor with 4 levels: a, b, c, d; based on Store model.
+    <li>Assortment is a factor with 3 levels: a = basic, b = extra, c = extended.  This variable is linked to Store number and not on the test data.
+    <li>CompetitionDistance is an integer that corresponds to distance in meters to the closest competitor store.  EDA revealed that the closer the competitor's store, the more sales that Store had.  This variable is linked to Store number and not on the test data.
+    <li>CompetitionOpenSinceMonth is an integer and gives the approximate month of the time the nearest competitor was opened.  This variable is linked to Store number and not on the test data.
+    <li>CompetitionOpenSinceYear is an integer and gives the approximate year of the time the nearest competitor was opened.  This variable is linked to Store number and not on the test data.
+    <li>Promo2 is an integer and is a continuing and consecutive promotion for some stores: 0 = store is not participating, 1 = store is participating.  This variable is linked to Store number and not on the test data.
+    <li>Promo2SinceWeek is an integer and describes the calendar week when the store started participating in Promo2.  This variable is linked to Store number and not on the test data.
+    <li>Promo2SinceYear is an integer and describes the year when the store started participating in Promo2.  This variable is linked to Store number and not on the test data.
+    <li>PromoInterval is a factor with 4 levels and describes the consecutive intervals Promo2 is started, naming the months the promotion is started anew. E.g. "Feb,May,Aug,Nov" means each round starts in February, May, August, November of any given year for that store.  This variable is linked to Store number and not on the test data.
+</ul>
+
+<div class="chunk" id="unnamed-chunk-3"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">head</span><span class="hl std">(data)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">##   Store DayOfWeek    Date Sales Customers Open Promo StateHoliday
+## 1     1         5 7/31/15  5263       555    1     1            0
+## 2     2         5 7/31/15  6064       625    1     1            0
+## 3     3         5 7/31/15  8314       821    1     1            0
+## 4     4         5 7/31/15 13995      1498    1     1            0
+## 5     5         5 7/31/15  4822       559    1     1            0
+## 6     6         5 7/31/15  5651       589    1     1            0
+##   SchoolHoliday StoreType Assortment CompetitionDistance
+## 1             1         c          a                1270
+## 2             1         a          a                 570
+## 3             1         a          a               14130
+## 4             1         c          c                 620
+## 5             1         a          a               29910
+## 6             1         a          a                 310
+##   CompetitionOpenSinceMonth CompetitionOpenSinceYear Promo2
+## 1                         9                     2008      0
+## 2                        11                     2007      1
+## 3                        12                     2006      1
+## 4                         9                     2009      0
+## 5                         4                     2015      0
+## 6                        12                     2013      0
+##   Promo2SinceWeek Promo2SinceYear   PromoInterval
+## 1               0               0               0
+## 2              13            2010 Jan,Apr,Jul,Oct
+## 3              14            2011 Jan,Apr,Jul,Oct
+## 4               0               0               0
+## 5               0               0               0
+## 6               0               0               0
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">tail</span><span class="hl std">(data)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">##         Store DayOfWeek   Date Sales Customers Open Promo StateHoliday
+## 1017204  1110         2 1/1/13     0         0    0     0            a
+## 1017205  1111         2 1/1/13     0         0    0     0            a
+## 1017206  1112         2 1/1/13     0         0    0     0            a
+## 1017207  1113         2 1/1/13     0         0    0     0            a
+## 1017208  1114         2 1/1/13     0         0    0     0            a
+## 1017209  1115         2 1/1/13     0         0    0     0            a
+##         SchoolHoliday StoreType Assortment CompetitionDistance
+## 1017204             1         c          c                 900
+## 1017205             1         a          a                1900
+## 1017206             1         c          c                1880
+## 1017207             1         a          c                9260
+## 1017208             1         a          c                 870
+## 1017209             1         d          c                5350
+##         CompetitionOpenSinceMonth CompetitionOpenSinceYear Promo2
+## 1017204                         9                     2010      0
+## 1017205                         6                     2014      1
+## 1017206                         4                     2006      0
+## 1017207                         0                        0      0
+## 1017208                         0                        0      0
+## 1017209                         0                        0      1
+##         Promo2SinceWeek Promo2SinceYear    PromoInterval
+## 1017204               0               0                0
+## 1017205              31            2013  Jan,Apr,Jul,Oct
+## 1017206               0               0                0
+## 1017207               0               0                0
+## 1017208               0               0                0
+## 1017209              22            2012 Mar,Jun,Sept,Dec
+</pre></div>
+</div></div>
+
+<p>Now let’s take a look at a summary of each factor variable:</p>
+<div class="chunk" id="unnamed-chunk-4"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">table</span><span class="hl std">(StateHoliday)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## StateHoliday
+##      0      a      b      c 
+## 986159  20260   6690   4100
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">barplot</span><span class="hl std">(</span><span class="hl kwd">table</span><span class="hl std">(StateHoliday))</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-4-1.png" title="plot of chunk unnamed-chunk-4" alt="plot of chunk unnamed-chunk-4" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">plot</span><span class="hl std">(StateHoliday, Sales)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-4-2.png" title="plot of chunk unnamed-chunk-4" alt="plot of chunk unnamed-chunk-4" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">table</span><span class="hl std">(StoreType)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## StoreType
+##      a      b      c      d 
+## 551627  15830 136840 312912
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">barplot</span><span class="hl std">(</span><span class="hl kwd">table</span><span class="hl std">(StoreType))</span> <span class="hl com"># b has the least number of stores</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-4-3.png" title="plot of chunk unnamed-chunk-4" alt="plot of chunk unnamed-chunk-4" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">plot</span><span class="hl std">(StoreType, Sales)</span> <span class="hl com"># b has the most sales, on average</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-4-4.png" title="plot of chunk unnamed-chunk-4" alt="plot of chunk unnamed-chunk-4" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">table</span><span class="hl std">(Assortment)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## Assortment
+##      a      b      c 
+## 537445   8294 471470
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">barplot</span><span class="hl std">(</span><span class="hl kwd">table</span><span class="hl std">(Assortment))</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-4-5.png" title="plot of chunk unnamed-chunk-4" alt="plot of chunk unnamed-chunk-4" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">plot</span><span class="hl std">(Assortment, Sales)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-4-6.png" title="plot of chunk unnamed-chunk-4" alt="plot of chunk unnamed-chunk-4" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">table</span><span class="hl std">(PromoInterval)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## PromoInterval
+##                0  Feb,May,Aug,Nov  Jan,Apr,Jul,Oct Mar,Jun,Sept,Dec 
+##           508031           118596           293122            97460
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">barplot</span><span class="hl std">(</span><span class="hl kwd">table</span><span class="hl std">(PromoInterval))</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-4-7.png" title="plot of chunk unnamed-chunk-4" alt="plot of chunk unnamed-chunk-4" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">plot</span><span class="hl std">(PromoInterval, Sales)</span> <span class="hl com">#consistent</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-4-8.png" title="plot of chunk unnamed-chunk-4" alt="plot of chunk unnamed-chunk-4" class="plot" /></div></div>
+
+<p>Now let's take a look at a summary of each integer variable:</p>
+<div class="chunk" id="unnamed-chunk-5"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">summary</span><span class="hl std">(Sales)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##       0    3727    5744    5774    7856   41550
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">summary</span><span class="hl std">(DayOfWeek)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##   1.000   2.000   4.000   3.998   6.000   7.000
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">hist</span><span class="hl std">(DayOfWeek,</span> <span class="hl kwc">breaks</span> <span class="hl std">=</span> <span class="hl num">7</span><span class="hl std">)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-1.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">cor</span><span class="hl std">(Sales, DayOfWeek)</span> <span class="hl com"># weak negative relationship</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] -0.462125
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">qplot</span><span class="hl std">(DayOfWeek, Sales)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-2.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">summary</span><span class="hl std">(Store)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##     1.0   280.0   558.0   558.4   838.0  1115.0
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">cor</span><span class="hl std">(Sales, Store)</span> <span class="hl com">#none</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.005126226
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">qplot</span><span class="hl std">(Store, Sales)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-3.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">summary</span><span class="hl std">(Customers)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##     0.0   405.0   609.0   633.1   837.0  7388.0
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">hist</span><span class="hl std">(Customers)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-4.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">boxplot</span><span class="hl std">(Customers,</span> <span class="hl kwc">col</span> <span class="hl std">=</span> <span class="hl str">'blue'</span><span class="hl std">)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-5.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">cor</span><span class="hl std">(Sales, Customers)</span> <span class="hl com"># strong positive</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.8947108
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">qplot</span><span class="hl std">(Customers, Sales)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-6.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl com"># however, not on test data</span>
+
+<span class="hl kwd">summary</span><span class="hl std">(Open)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##  0.0000  1.0000  1.0000  0.8301  1.0000  1.0000
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">hist</span><span class="hl std">(Open)</span> <span class="hl com"># more days with Open</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-7.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">barplot</span><span class="hl std">(</span><span class="hl kwd">table</span><span class="hl std">(Open))</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-8.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">plot</span><span class="hl std">(Open, Sales)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-9.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">summary</span><span class="hl std">(Promo)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##  0.0000  0.0000  0.0000  0.3815  1.0000  1.0000
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">hist</span><span class="hl std">(Promo)</span> <span class="hl com"># more days without Promos</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-10.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">barplot</span><span class="hl std">(</span><span class="hl kwd">table</span><span class="hl std">(Promo))</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-11.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">plot</span><span class="hl std">(Promo, Sales)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-12.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">summary</span><span class="hl std">(SchoolHoliday)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##  0.0000  0.0000  0.0000  0.1786  0.0000  1.0000
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">hist</span><span class="hl std">(SchoolHoliday)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-13.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">barplot</span><span class="hl std">(</span><span class="hl kwd">table</span><span class="hl std">(SchoolHoliday))</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-14.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">plot</span><span class="hl std">(SchoolHoliday, Sales)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-15.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">summary</span><span class="hl std">(CompetitionDistance)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##       0     700    2320    5416    6880   75860
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">hist</span><span class="hl std">(CompetitionDistance)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-16.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">qplot</span><span class="hl std">(CompetitionDistance, Sales)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-17.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">cor</span><span class="hl std">(Sales, CompetitionDistance)</span> <span class="hl com"># none</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] -0.01860928
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">summary</span><span class="hl std">(CompetitionOpenSinceMonth)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##   0.000   0.000   4.000   4.927   9.000  12.000
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">hist</span><span class="hl std">(CompetitionOpenSinceMonth,</span> <span class="hl kwc">breaks</span> <span class="hl std">=</span> <span class="hl num">12</span><span class="hl std">)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-18.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">barplot</span><span class="hl std">(</span><span class="hl kwd">table</span><span class="hl std">(CompetitionOpenSinceMonth))</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-19.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">plot</span><span class="hl std">(CompetitionOpenSinceMonth, Sales)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-20.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">summary</span><span class="hl std">(CompetitionOpenSinceYear)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##       0       0    2006    1370    2011    2015
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">hist</span><span class="hl std">(CompetitionOpenSinceYear)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-21.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">barplot</span><span class="hl std">(</span><span class="hl kwd">table</span><span class="hl std">(CompetitionOpenSinceYear))</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-22.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">plot</span><span class="hl std">(CompetitionOpenSinceYear, Sales)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-23.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">summary</span><span class="hl std">(Promo2)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##  0.0000  0.0000  1.0000  0.5006  1.0000  1.0000
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">barplot</span><span class="hl std">(</span><span class="hl kwd">table</span><span class="hl std">(Promo2))</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-24.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">plot</span><span class="hl std">(Promo2, Sales)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-25.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">summary</span><span class="hl std">(Promo2SinceWeek)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##    0.00    0.00    1.00   11.65   22.00   50.00
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">hist</span><span class="hl std">(Promo2SinceWeek,</span> <span class="hl kwc">breaks</span> <span class="hl std">=</span> <span class="hl num">50</span><span class="hl std">)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-26.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">plot</span><span class="hl std">(Promo2SinceWeek, Sales)</span> <span class="hl com">#consistent</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-27.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">summary</span><span class="hl std">(Promo2SinceYear)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##       0       0    2009    1007    2012    2015
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">barplot</span><span class="hl std">(</span><span class="hl kwd">table</span><span class="hl std">(Promo2SinceYear))</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-28.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">plot</span><span class="hl std">(Promo2SinceYear, Sales)</span> <span class="hl com">#consistent</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-29.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">pairs</span><span class="hl std">(data[</span><span class="hl kwd">c</span><span class="hl std">(</span><span class="hl num">4</span><span class="hl std">,</span><span class="hl num">1</span><span class="hl std">,</span><span class="hl num">5</span><span class="hl std">,</span><span class="hl num">6</span><span class="hl std">)])</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-5-30.png" title="plot of chunk unnamed-chunk-5" alt="plot of chunk unnamed-chunk-5" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl com"># strong relationship between customers and sales</span>
+<span class="hl com"># however, customers is not on the real test data</span>
+<span class="hl com"># so, it wouldn't make sense to include it in a linear model if there are no</span>
+<span class="hl com"># test values to plug in</span>
+</pre></div>
+</div></div>
+
+<p>Our first model we will try is a <b>Logistic Regression</b> model.  Let's separate Sales into two categories:  We’ll create a binary variable called “Nsales.”  If a particular observation’s Sales is greater than the Sales mean, then its Nsales will have a value of 1; if an observation’s Sales is less than its mean, then Nsales will have a value of 0:</p>
+
+<div class="chunk" id="unnamed-chunk-6"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">Nsales</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">ifelse</span><span class="hl std">(data</span><span class="hl opt">$</span><span class="hl std">Sales</span><span class="hl opt">&gt;</span><span class="hl kwd">mean</span><span class="hl std">(data</span><span class="hl opt">$</span><span class="hl std">Sales),</span> <span class="hl num">1</span><span class="hl std">,</span> <span class="hl num">0</span><span class="hl std">)</span>
+<span class="hl kwd">summary</span><span class="hl std">(Nsales)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##  0.0000  0.0000  0.0000  0.4959  1.0000  1.0000
+</pre></div>
+</div></div>
+
+<p>We’re interested in predicting whether or not an observation is considered to have high sales or low sales.  The variable “Nsales” is coded as “0” for low sales and “1” for high sales.  The variables we’ll use to predict Nsales include the following:  Store, DayOfWeek, Open, Promo, SchoolHoliday, CompetitionDistance, and Promo2.</p>
+
+<div class="chunk" id="unnamed-chunk-7"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">glm_mod</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">glm</span><span class="hl std">(Nsales</span> <span class="hl opt">~</span> <span class="hl std">Store</span> <span class="hl opt">+</span> <span class="hl std">DayOfWeek</span> <span class="hl opt">+</span> <span class="hl std">Open</span> <span class="hl opt">+</span> <span class="hl std">Promo</span> <span class="hl opt">+</span> <span class="hl std">SchoolHoliday</span> <span class="hl opt">+</span> <span class="hl std">CompetitionDistance</span> <span class="hl opt">+</span> <span class="hl std">Promo2,</span> <span class="hl kwc">family</span> <span class="hl std">=</span> <span class="hl kwd">binomial</span><span class="hl std">(</span><span class="hl kwc">link</span> <span class="hl std">= logit) ,</span><span class="hl kwc">data</span> <span class="hl std">= data)</span>
+<span class="hl kwd">summary</span><span class="hl std">(glm_mod)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## glm(formula = Nsales ~ Store + DayOfWeek + Open + Promo + SchoolHoliday + 
+##     CompetitionDistance + Promo2, family = binomial(link = logit), 
+##     data = data)
+## 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -1.9477  -0.9970  -0.0001   0.7509   1.4560  
+## 
+## Coefficients:
+##                       Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept)         -1.832e+01  1.520e+01  -1.206    0.228    
+## Store               -1.484e-05  7.437e-06  -1.995    0.046 *  
+## DayOfWeek           -3.085e-02  1.433e-03 -21.529   &lt;2e-16 ***
+## Open                 1.843e+01  1.520e+01   1.213    0.225    
+## Promo                1.583e+00  5.210e-03 303.762   &lt;2e-16 ***
+## SchoolHoliday        7.132e-02  6.176e-03  11.548   &lt;2e-16 ***
+## CompetitionDistance -4.175e-06  3.093e-07 -13.497   &lt;2e-16 ***
+## Promo2              -4.443e-01  4.851e-03 -91.595   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## (Dispersion parameter for binomial family taken to be 1)
+## 
+##     Null deviance: 1410083  on 1017208  degrees of freedom
+## Residual deviance: 1015023  on 1017201  degrees of freedom
+## AIC: 1015039
+## 
+## Number of Fisher Scoring iterations: 17
+</pre></div>
+</div></div>
+
+<p>We decided to exclude the “Open” variable because it is statistically insignificant. Let's re-run the Logistic regression model.</p>
+
+<div class="chunk" id="unnamed-chunk-8"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">rm</span><span class="hl std">(glm_mod)</span>
+<span class="hl std">glm_mod</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">glm</span><span class="hl std">(Nsales</span> <span class="hl opt">~</span> <span class="hl std">Store</span> <span class="hl opt">+</span> <span class="hl std">DayOfWeek</span> <span class="hl opt">+</span> <span class="hl std">Promo</span> <span class="hl opt">+</span> <span class="hl std">SchoolHoliday</span> <span class="hl opt">+</span> <span class="hl std">CompetitionDistance</span> <span class="hl opt">+</span> <span class="hl std">Promo2,</span> <span class="hl kwc">family</span> <span class="hl std">=</span> <span class="hl kwd">binomial</span><span class="hl std">(</span><span class="hl kwc">link</span> <span class="hl std">= logit) ,</span><span class="hl kwc">data</span> <span class="hl std">= data)</span>
+<span class="hl kwd">summary</span><span class="hl std">(glm_mod)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## glm(formula = Nsales ~ Store + DayOfWeek + Promo + SchoolHoliday + 
+##     CompetitionDistance + Promo2, family = binomial(link = logit), 
+##     data = data)
+## 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -2.0335  -0.8538  -0.6250   0.8452   1.8511  
+## 
+## Coefficients:
+##                       Estimate Std. Error  z value Pr(&gt;|z|)    
+## (Intercept)          4.990e-01  7.973e-03   62.592  &lt; 2e-16 ***
+## Store               -1.202e-05  6.992e-06   -1.719 0.085620 .  
+## DayOfWeek           -2.244e-01  1.228e-03 -182.764  &lt; 2e-16 ***
+## Promo                1.659e+00  4.945e-03  335.500  &lt; 2e-16 ***
+## SchoolHoliday       -1.973e-02  5.888e-03   -3.350 0.000808 ***
+## CompetitionDistance -2.904e-06  2.944e-07   -9.865  &lt; 2e-16 ***
+## Promo2              -4.094e-01  4.562e-03  -89.755  &lt; 2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## (Dispersion parameter for binomial family taken to be 1)
+## 
+##     Null deviance: 1410083  on 1017208  degrees of freedom
+## Residual deviance: 1168397  on 1017202  degrees of freedom
+## AIC: 1168411
+## 
+## Number of Fisher Scoring iterations: 4
+</pre></div>
+</div></div>
+
+<p>In this model, Store is statistically insignificant.  However, we need Store to predict Sales based on Store.</p>
+
+<p>So our logistic regression formula is:</p>
+
+<p>Nsales = 0.499 - 0.00001202(Store) - 0.2244(DayOfWeek) + 1.659(Promo) - 0.001973(SchoolHoliday) - 0.000002904(CompetitionDistance) - 0.4094(Promo2)</p>
+
+<p>The resulting value for Nsales should always lie between 0 and 1.  However, it appears that this formula is based mostly on the intercept.  So what happens when we get a value of 0.60?  This means that we are 60% sure that this person would be considered high-income (i.e. that the binary variable “Nsales” = 1).  Thus there’s a 40% that this person is considered low-income (i.e. that the binary variable “Nsales” = 0).</p>
+
+<p>Let's try a linear regression model, since the Logistic Regression model is based on the intercept.</p>
+
+<p>First, let's change the 0-1 coded integer variables that are categorical into factors.  Then, let's check to see how each variable does by itself in a linear regression model against Sales as the y variable.</p>
+
+<div class="chunk" id="unnamed-chunk-9"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">data</span><span class="hl opt">$</span><span class="hl std">Open</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">as.factor</span><span class="hl std">(Open)</span>
+<span class="hl std">data</span><span class="hl opt">$</span><span class="hl std">Promo</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">as.factor</span><span class="hl std">(Promo)</span>
+<span class="hl std">data</span><span class="hl opt">$</span><span class="hl std">SchoolHoliday</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">as.factor</span><span class="hl std">(SchoolHoliday)</span>
+<span class="hl std">data</span><span class="hl opt">$</span><span class="hl std">Promo2</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">as.factor</span><span class="hl std">(Promo2)</span>
+
+<span class="hl kwd">attach</span><span class="hl std">(data)</span>
+</pre></div>
+<div class="message"><pre class="knitr r">## The following objects are masked from data (pos = 3):
+## 
+##     Assortment, CompetitionDistance, CompetitionOpenSinceMonth,
+##     CompetitionOpenSinceYear, Customers, Date, DayOfWeek, Open,
+##     Promo, Promo2, Promo2SinceWeek, Promo2SinceYear,
+##     PromoInterval, Sales, SchoolHoliday, StateHoliday, Store,
+##     StoreType
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl std">lm.test</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">lm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">Store)</span>
+<span class="hl kwd">summary</span><span class="hl std">(lm.test)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## lm(formula = Sales ~ Store)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+##  -5808  -2046    -29   2083  35756 
+## 
+## Coefficients:
+##              Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept) 5.740e+03  7.643e+00  750.93  &lt; 2e-16 ***
+## Store       6.131e-02  1.186e-02    5.17 2.34e-07 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 3850 on 1017207 degrees of freedom
+## Multiple R-squared:  2.628e-05,	Adjusted R-squared:  2.53e-05 
+## F-statistic: 26.73 on 1 and 1017207 DF,  p-value: 2.339e-07
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com"># low p-value</span>
+<span class="hl kwd">sum</span><span class="hl std">(lm.test</span><span class="hl opt">$</span><span class="hl std">residuals</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 1.507659e+13
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   15.07659e+12</span>
+<span class="hl com">## plot(lm.test)</span>
+<span class="hl com">## commenting out because it takes forever to create these four plots, but this is to test for non-linearity between variables.</span>
+<span class="hl com">##  test for non-linearity: residuals vs fitted shows no discernible pattern</span>
+<span class="hl kwd">rm</span><span class="hl std">(lm.test)</span>
+
+<span class="hl std">lm.test</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">lm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">Open)</span>
+<span class="hl kwd">summary</span><span class="hl std">(lm.test)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## lm(formula = Sales ~ Open)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+##  -6956  -1784      0    900  34595 
+## 
+## Coefficients:
+##              Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept) 3.028e-08  6.803e+00     0.0        1    
+## Open1       6.956e+03  7.467e+00   931.5   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 2828 on 1017207 degrees of freedom
+## Multiple R-squared:  0.4603,	Adjusted R-squared:  0.4603 
+## F-statistic: 8.676e+05 on 1 and 1017207 DF,  p-value: &lt; 2.2e-16
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com"># low p-value</span>
+<span class="hl kwd">sum</span><span class="hl std">(lm.test</span><span class="hl opt">$</span><span class="hl std">residuals</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 8.136677e+12
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">## 8.136677e+12</span>
+<span class="hl com">## plot(lm.test)</span>
+<span class="hl com">#   test for non-linearity: residuals vs fitted shows no discernible pattern</span>
+<span class="hl kwd">rm</span><span class="hl std">(lm.test)</span>
+
+<span class="hl std">lm.test</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">lm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">StateHoliday)</span>
+<span class="hl kwd">summary</span><span class="hl std">(lm.test)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## lm(formula = Sales ~ StateHoliday)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+##  -5947  -1905   -172   1913  38508 
+## 
+## Coefficients:
+##                Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)    5947.484      3.749 1586.21   &lt;2e-16 ***
+## StateHolidaya -5656.748     26.427 -214.06   &lt;2e-16 ***
+## StateHolidayb -5733.172     45.677 -125.52   &lt;2e-16 ***
+## StateHolidayc -5778.751     58.271  -99.17   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 3723 on 1017205 degrees of freedom
+## Multiple R-squared:  0.06463,	Adjusted R-squared:  0.06463 
+## F-statistic: 2.343e+04 on 3 and 1017205 DF,  p-value: &lt; 2.2e-16
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com"># low p-values</span>
+<span class="hl kwd">sum</span><span class="hl std">(lm.test</span><span class="hl opt">$</span><span class="hl std">residuals</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 1.410256e+13
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com"># 14.10256e+12</span>
+<span class="hl com">## plot(lm.test)</span>
+<span class="hl com">#   test for non-linearity: residuals vs fitted shows no discernible pattern</span>
+<span class="hl kwd">rm</span><span class="hl std">(lm.test)</span>
+
+<span class="hl std">lm.test</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">lm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">SchoolHoliday)</span>
+<span class="hl kwd">summary</span><span class="hl std">(lm.test)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## lm(formula = Sales ~ SchoolHoliday)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+##  -6477  -2092    -33   2086  35930 
+## 
+## Coefficients:
+##                Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)    5620.979      4.197 1339.39   &lt;2e-16 ***
+## SchoolHoliday1  855.543      9.929   86.17   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 3836 on 1017207 degrees of freedom
+## Multiple R-squared:  0.007246,	Adjusted R-squared:  0.007245 
+## F-statistic:  7425 on 1 and 1017207 DF,  p-value: &lt; 2.2e-16
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com"># low p-value</span>
+<span class="hl kwd">sum</span><span class="hl std">(lm.test</span><span class="hl opt">$</span><span class="hl std">residuals</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 1.496774e+13
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com"># 14.96774e+12</span>
+<span class="hl com">##  plot(lm.test)</span>
+<span class="hl com">#   test for non-linearity: residuals vs fitted shows no discernible pattern</span>
+<span class="hl kwd">rm</span><span class="hl std">(lm.test)</span>
+</pre></div>
+</div></div>
+
+<p>Now, let's look at interaction variables.  We'll only consider variables that are on the test data.</p>
+
+<div class="chunk" id="unnamed-chunk-10"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">lm.test</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">lm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">Store</span><span class="hl opt">*</span><span class="hl std">DayOfWeek)</span>
+<span class="hl kwd">summary</span><span class="hl std">(lm.test)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## lm(formula = Sales ~ Store * DayOfWeek)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+##  -8524  -2858   -337   1868  34270 
+## 
+## Coefficients:
+##                   Estimate Std. Error  t value Pr(&gt;|t|)    
+## (Intercept)      9.240e+03  1.517e+01  609.216  &lt; 2e-16 ***
+## Store            1.706e-01  2.353e-02    7.252 4.12e-13 ***
+## DayOfWeek       -8.755e+02  3.393e+00 -257.985  &lt; 2e-16 ***
+## Store:DayOfWeek -2.736e-02  5.265e-03   -5.196 2.04e-07 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 3414 on 1017205 degrees of freedom
+## Multiple R-squared:  0.2136,	Adjusted R-squared:  0.2136 
+## F-statistic: 9.21e+04 on 3 and 1017205 DF,  p-value: &lt; 2.2e-16
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#high p-values for interaction</span>
+<span class="hl kwd">rm</span><span class="hl std">(lm.test)</span>
+
+<span class="hl std">lm.test</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">lm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">Store</span><span class="hl opt">*</span><span class="hl std">Open)</span>
+<span class="hl kwd">summary</span><span class="hl std">(lm.test)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## lm(formula = Sales ~ Store * Open)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+##  -6996  -1784      0    901  34569 
+## 
+## Coefficients:
+##               Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept) -7.421e-08  1.360e+01   0.000  1.00000    
+## Store       -5.677e-13  2.108e-02   0.000  1.00000    
+## Open1        6.914e+03  1.493e+01 463.150  &lt; 2e-16 ***
+## Store:Open1  7.439e-02  2.315e-02   3.214  0.00131 ** 
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 2828 on 1017205 degrees of freedom
+## Multiple R-squared:  0.4604,	Adjusted R-squared:  0.4604 
+## F-statistic: 2.893e+05 on 3 and 1017205 DF,  p-value: &lt; 2.2e-16
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   low p-value for interaction variable</span>
+<span class="hl kwd">sum</span><span class="hl std">(lm.test</span><span class="hl opt">$</span><span class="hl std">residuals</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 8.136194e+12
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   8.136194e+12</span>
+<span class="hl kwd">rm</span><span class="hl std">(lm.test)</span>
+
+<span class="hl std">lm.test</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">lm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">Store</span><span class="hl opt">*</span><span class="hl std">Promo)</span>
+<span class="hl kwd">summary</span><span class="hl std">(lm.test)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## lm(formula = Sales ~ Store * Promo)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+##  -8046  -2279    -29   1852  37132 
+## 
+## Coefficients:
+##               Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)  4.385e+03  8.667e+00 505.912  &lt; 2e-16 ***
+## Store        3.774e-02  1.345e-02   2.806  0.00501 ** 
+## Promo1       3.551e+03  1.403e+01 253.052  &lt; 2e-16 ***
+## Store:Promo1 6.096e-02  2.177e-02   2.800  0.00511 ** 
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 3433 on 1017205 degrees of freedom
+## Multiple R-squared:  0.2046,	Adjusted R-squared:  0.2046 
+## F-statistic: 8.724e+04 on 3 and 1017205 DF,  p-value: &lt; 2.2e-16
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   low p-value</span>
+<span class="hl kwd">sum</span><span class="hl std">(lm.test</span><span class="hl opt">$</span><span class="hl std">residuals</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 1.199151e+13
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   11.99151e+12</span>
+<span class="hl kwd">rm</span><span class="hl std">(lm.test)</span>
+
+<span class="hl std">lm.test</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">lm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">Store</span><span class="hl opt">*</span><span class="hl std">StateHoliday)</span>
+<span class="hl kwd">summary</span><span class="hl std">(lm.test)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## lm(formula = Sales ~ Store * StateHoliday)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+##  -5983  -1905   -179   1914  38488 
+## 
+## Coefficients:
+##                       Estimate Std. Error  t value Pr(&gt;|t|)    
+## (Intercept)          5.912e+03  7.507e+00  787.423  &lt; 2e-16 ***
+## Store                6.443e-02  1.165e-02    5.532 3.17e-08 ***
+## StateHolidaya       -5.652e+03  5.299e+01 -106.661  &lt; 2e-16 ***
+## StateHolidayb       -5.659e+03  9.142e+01  -61.910  &lt; 2e-16 ***
+## StateHolidayc       -5.720e+03  1.168e+02  -48.980  &lt; 2e-16 ***
+## Store:StateHolidaya -9.459e-03  8.203e-02   -0.115    0.908    
+## Store:StateHolidayb -1.321e-01  1.419e-01   -0.931    0.352    
+## Store:StateHolidayc -1.058e-01  1.810e-01   -0.585    0.559    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 3723 on 1017201 degrees of freedom
+## Multiple R-squared:  0.06466,	Adjusted R-squared:  0.06465 
+## F-statistic: 1.005e+04 on 7 and 1017201 DF,  p-value: &lt; 2.2e-16
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   high p-value</span>
+<span class="hl kwd">rm</span><span class="hl std">(lm.test)</span>
+
+<span class="hl std">lm.test</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">lm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">Store</span><span class="hl opt">*</span><span class="hl std">SchoolHoliday)</span>
+<span class="hl kwd">summary</span><span class="hl std">(lm.test)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## lm(formula = Sales ~ Store * SchoolHoliday)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+##  -6505  -2092    -33   2087  35908 
+## 
+## Coefficients:
+##                        Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)          5585.98932    8.40074 664.940  &lt; 2e-16 ***
+## Store                   0.06267    0.01303   4.808 1.52e-06 ***
+## SchoolHoliday1        861.81566   19.90030  43.307  &lt; 2e-16 ***
+## Store:SchoolHoliday1   -0.01128    0.03086  -0.366    0.715    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 3836 on 1017205 degrees of freedom
+## Multiple R-squared:  0.007272,	Adjusted R-squared:  0.007269 
+## F-statistic:  2484 on 3 and 1017205 DF,  p-value: &lt; 2.2e-16
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   high p-value</span>
+<span class="hl kwd">rm</span><span class="hl std">(lm.test)</span>
+
+<span class="hl std">lm.test</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">lm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">DayOfWeek</span><span class="hl opt">*</span><span class="hl std">Open)</span>
+<span class="hl kwd">summary</span><span class="hl std">(lm.test)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## lm(formula = Sales ~ DayOfWeek * Open)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+##  -7767  -1753      0    917  33784 
+## 
+## Coefficients:
+##                   Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)     -6.671e-08  2.820e+01    0.00        1    
+## DayOfWeek       -7.099e-09  4.325e+00    0.00        1    
+## Open1            8.089e+03  2.903e+01  278.64   &lt;2e-16 ***
+## DayOfWeek:Open1 -3.219e+02  4.668e+00  -68.95   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 2783 on 1017205 degrees of freedom
+## Multiple R-squared:  0.4776,	Adjusted R-squared:  0.4776 
+## F-statistic: 3.099e+05 on 3 and 1017205 DF,  p-value: &lt; 2.2e-16
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   low p-values, except for Sunday*IsOpen</span>
+<span class="hl com">#   of course they are low, Sales will be high when Store is open</span>
+<span class="hl kwd">sum</span><span class="hl std">(lm.test</span><span class="hl opt">$</span><span class="hl std">residuals</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 7.876737e+12
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   7.727524e+12</span>
+<span class="hl kwd">rm</span><span class="hl std">(lm.test)</span>
+
+<span class="hl std">lm.test</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">lm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">DayOfWeek</span><span class="hl opt">*</span><span class="hl std">Promo)</span>
+<span class="hl kwd">summary</span><span class="hl std">(lm.test)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## lm(formula = Sales ~ DayOfWeek * Promo)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+##  -9187  -2568   -399   1675  34749 
+## 
+## Coefficients:
+##                  Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)      7465.076      9.982  747.83   &lt;2e-16 ***
+## DayOfWeek        -662.881      1.976 -335.44   &lt;2e-16 ***
+## Promo1           2319.930     15.699  147.77   &lt;2e-16 ***
+## DayOfWeek:Promo1   64.745      4.154   15.59   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 3220 on 1017205 degrees of freedom
+## Multiple R-squared:  0.3004,	Adjusted R-squared:  0.3004 
+## F-statistic: 1.456e+05 on 3 and 1017205 DF,  p-value: &lt; 2.2e-16
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   no promos on weekends</span>
+<span class="hl com">#   low p-values</span>
+<span class="hl kwd">sum</span><span class="hl std">(lm.test</span><span class="hl opt">$</span><span class="hl std">residuals</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 1.054748e+13
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   8.285728e+12</span>
+<span class="hl kwd">rm</span><span class="hl std">(lm.test)</span>
+
+<span class="hl std">lm.test</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">lm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">DayOfWeek</span><span class="hl opt">*</span><span class="hl std">StateHoliday)</span>
+<span class="hl kwd">summary</span><span class="hl std">(lm.test)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## lm(formula = Sales ~ DayOfWeek * StateHoliday)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+##  -8772  -2688   -321   1685  38519 
+## 
+## Coefficients:
+##                          Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)              9708.499      7.278 1333.91   &lt;2e-16 ***
+## DayOfWeek                -936.255      1.621 -577.68   &lt;2e-16 ***
+## StateHolidaya           -9510.377     59.361 -160.21   &lt;2e-16 ***
+## StateHolidayb           -9477.097     71.584 -132.39   &lt;2e-16 ***
+## StateHolidayc           -9719.981    287.412  -33.82   &lt;2e-16 ***
+## DayOfWeek:StateHolidaya   963.302     15.959   60.36   &lt;2e-16 ***
+## DayOfWeek:StateHolidayb   930.558     19.817   46.96   &lt;2e-16 ***
+## DayOfWeek:StateHolidayc   981.808     71.517   13.73   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 3231 on 1017201 degrees of freedom
+## Multiple R-squared:  0.2957,	Adjusted R-squared:  0.2957 
+## F-statistic: 6.101e+04 on 7 and 1017201 DF,  p-value: &lt; 2.2e-16
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   low p-values when they match up</span>
+<span class="hl kwd">sum</span><span class="hl std">(lm.test</span><span class="hl opt">$</span><span class="hl std">residuals</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 1.061875e+13
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   8.121018e+12</span>
+<span class="hl kwd">rm</span><span class="hl std">(lm.test)</span>
+
+<span class="hl std">lm.test</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">lm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">DayOfWeek</span><span class="hl opt">*</span><span class="hl std">SchoolHoliday)</span>
+<span class="hl kwd">summary</span><span class="hl std">(lm.test)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## lm(formula = Sales ~ DayOfWeek * SchoolHoliday)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+##  -8603  -2862   -357   1854  34383 
+## 
+## Coefficients:
+##                           Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)               9538.157      8.521 1119.38   &lt;2e-16 ***
+## DayOfWeek                 -934.962      1.829 -511.20   &lt;2e-16 ***
+## SchoolHoliday1           -1310.853     20.160  -65.02   &lt;2e-16 ***
+## DayOfWeek:SchoolHoliday1   373.580      5.577   66.99   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 3406 on 1017205 degrees of freedom
+## Multiple R-squared:  0.2171,	Adjusted R-squared:  0.2171 
+## F-statistic: 9.403e+04 on 3 and 1017205 DF,  p-value: &lt; 2.2e-16
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   low p-values except on weekends - makes sense</span>
+<span class="hl kwd">sum</span><span class="hl std">(lm.test</span><span class="hl opt">$</span><span class="hl std">residuals</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 1.180357e+13
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   9.477315e+12</span>
+<span class="hl kwd">rm</span><span class="hl std">(lm.test)</span>
+
+<span class="hl std">lm.test</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">lm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">Open</span><span class="hl opt">*</span><span class="hl std">Promo)</span>
+<span class="hl kwd">summary</span><span class="hl std">(lm.test)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## lm(formula = Sales ~ Open * Promo)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+##  -8228  -1587      0    779  35622 
+## 
+## Coefficients:
+##                Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)   4.751e-08  6.541e+00    0.00        1    
+## Open1         5.929e+03  7.588e+00  781.45   &lt;2e-16 ***
+## Promo1       -4.667e-08  2.571e+01    0.00        1    
+## Open1:Promo1  2.299e+03  2.635e+01   87.25   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 2630 on 1017205 degrees of freedom
+## Multiple R-squared:  0.5335,	Adjusted R-squared:  0.5335 
+## F-statistic: 3.877e+05 on 3 and 1017205 DF,  p-value: &lt; 2.2e-16
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   low p-value when Open is true</span>
+<span class="hl kwd">sum</span><span class="hl std">(lm.test</span><span class="hl opt">$</span><span class="hl std">residuals</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 7.033906e+12
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   7.033906e+12</span>
+<span class="hl kwd">rm</span><span class="hl std">(lm.test)</span>
+
+<span class="hl std">lm.test</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">lm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">Open</span><span class="hl opt">*</span><span class="hl std">StateHoliday)</span>
+<span class="hl kwd">summary</span><span class="hl std">(lm.test)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## lm(formula = Sales ~ Open * StateHoliday)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+##  -8928  -1783      0    900  34597 
+## 
+## Coefficients:
+##                       Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)          3.028e-08  7.486e+00    0.00        1    
+## Open1                6.954e+03  8.094e+00  859.05   &lt;2e-16 ***
+## StateHolidaya        1.108e-09  2.156e+01    0.00        1    
+## StateHolidayb       -1.557e-09  3.574e+01    0.00        1    
+## StateHolidayc       -2.704e-09  4.517e+01    0.00        1    
+## Open1:StateHolidaya  1.534e+03  1.095e+02   14.01   &lt;2e-16 ***
+## Open1:StateHolidayb  2.934e+03  2.376e+02   12.35   &lt;2e-16 ***
+## Open1:StateHolidayc  2.790e+03  3.386e+02    8.24   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 2828 on 1017201 degrees of freedom
+## Multiple R-squared:  0.4606,	Adjusted R-squared:  0.4605 
+## F-statistic: 1.241e+05 on 7 and 1017201 DF,  p-value: &lt; 2.2e-16
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   low p-values when Open is true</span>
+<span class="hl kwd">sum</span><span class="hl std">(lm.test</span><span class="hl opt">$</span><span class="hl std">residuals</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 8.133246e+12
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   8.133246e+12</span>
+<span class="hl kwd">rm</span><span class="hl std">(lm.test)</span>
+
+<span class="hl std">lm.test</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">lm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">Open</span><span class="hl opt">*</span><span class="hl std">SchoolHoliday)</span>
+<span class="hl kwd">summary</span><span class="hl std">(lm.test)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## lm(formula = Sales ~ Open * SchoolHoliday)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+##  -7200  -1782      0    902  34654 
+## 
+## Coefficients:
+##                       Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)          2.953e-08  7.189e+00    0.00        1    
+## Open1                6.897e+03  7.963e+00  866.11   &lt;2e-16 ***
+## SchoolHoliday1       6.696e-09  2.211e+01    0.00        1    
+## Open1:SchoolHoliday1 3.034e+02  2.344e+01   12.94   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 2826 on 1017205 degrees of freedom
+## Multiple R-squared:  0.4611,	Adjusted R-squared:  0.4611 
+## F-statistic: 2.902e+05 on 3 and 1017205 DF,  p-value: &lt; 2.2e-16
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   low p-values when Open is true</span>
+<span class="hl kwd">sum</span><span class="hl std">(lm.test</span><span class="hl opt">$</span><span class="hl std">residuals</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 8.124544e+12
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   8.124544e+12</span>
+<span class="hl kwd">rm</span><span class="hl std">(lm.test)</span>
+<span class="hl com">#   not going to include any interactions with Open variable</span>
+
+<span class="hl std">lm.test</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">lm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">Promo</span><span class="hl opt">*</span><span class="hl std">StateHoliday)</span>
+<span class="hl kwd">summary</span><span class="hl std">(lm.test)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## lm(formula = Sales ~ Promo * StateHoliday)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+##  -8209  -2078   -169   1693  38519 
+## 
+## Coefficients: (1 not defined because of singularities)
+##                       Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)           4546.129      4.210 1079.87   &lt;2e-16 ***
+## Promo1                3662.913      6.806  538.17   &lt;2e-16 ***
+## StateHolidaya        -4350.715     29.329 -148.34   &lt;2e-16 ***
+## StateHolidayb        -4320.424     56.954  -75.86   &lt;2e-16 ***
+## StateHolidayc        -4377.396     51.476  -85.04   &lt;2e-16 ***
+## Promo1:StateHolidaya -3403.726     48.343  -70.41   &lt;2e-16 ***
+## Promo1:StateHolidayb -3685.701     80.613  -45.72   &lt;2e-16 ***
+## Promo1:StateHolidayc        NA         NA      NA       NA    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 3285 on 1017202 degrees of freedom
+## Multiple R-squared:  0.2719,	Adjusted R-squared:  0.2719 
+## F-statistic: 6.332e+04 on 6 and 1017202 DF,  p-value: &lt; 2.2e-16
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   low p-values, no promo on Christmas</span>
+<span class="hl kwd">sum</span><span class="hl std">(lm.test</span><span class="hl opt">$</span><span class="hl std">residuals</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 1.097686e+13
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   10.97686e+12</span>
+<span class="hl kwd">rm</span><span class="hl std">(lm.test)</span>
+
+<span class="hl std">lm.test</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">lm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">Promo</span><span class="hl opt">*</span><span class="hl std">SchoolHoliday)</span>
+<span class="hl kwd">summary</span><span class="hl std">(lm.test)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## lm(formula = Sales ~ Promo * SchoolHoliday)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+##  -8016  -2299    -54   1854  37314 
+## 
+## Coefficients:
+##                        Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)            4237.209      4.700  901.62   &lt;2e-16 ***
+## Promo1                 3778.453      7.766  486.56   &lt;2e-16 ***
+## SchoolHoliday1         1066.296     11.810   90.29   &lt;2e-16 ***
+## Promo1:SchoolHoliday1 -1182.148     17.892  -66.07   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 3420 on 1017205 degrees of freedom
+## Multiple R-squared:  0.211,	Adjusted R-squared:  0.211 
+## F-statistic: 9.067e+04 on 3 and 1017205 DF,  p-value: &lt; 2.2e-16
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   low p-value</span>
+<span class="hl kwd">sum</span><span class="hl std">(lm.test</span><span class="hl opt">$</span><span class="hl std">residuals</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 1.18958e+13
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   11.8958e+12</span>
+<span class="hl kwd">rm</span><span class="hl std">(lm.test)</span>
+
+<span class="hl std">lm.test</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">lm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">StateHoliday</span><span class="hl opt">*</span><span class="hl std">SchoolHoliday)</span>
+<span class="hl kwd">summary</span><span class="hl std">(lm.test)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## lm(formula = Sales ~ StateHoliday * SchoolHoliday)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+##  -7064  -1991   -169   1920  38291 
+## 
+## Coefficients: (1 not defined because of singularities)
+##                               Estimate Std. Error  t value Pr(&gt;|t|)    
+## (Intercept)                   5721.138      4.075 1403.798   &lt;2e-16 ***
+## StateHolidaya                -5388.337     30.352 -177.531   &lt;2e-16 ***
+## StateHolidayb                -5289.967    167.794  -31.527   &lt;2e-16 ***
+## StateHolidayc                -6895.362     58.341 -118.191   &lt;2e-16 ***
+## SchoolHoliday1                1342.957      9.927  135.282   &lt;2e-16 ***
+## StateHolidaya:SchoolHoliday1 -1506.692     60.164  -25.043   &lt;2e-16 ***
+## StateHolidayb:SchoolHoliday1 -1576.730    174.446   -9.039   &lt;2e-16 ***
+## StateHolidayc:SchoolHoliday1        NA         NA       NA       NA    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 3690 on 1017202 degrees of freedom
+## Multiple R-squared:  0.08117,	Adjusted R-squared:  0.08116 
+## F-statistic: 1.498e+04 on 6 and 1017202 DF,  p-value: &lt; 2.2e-16
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   low p-values when they match up</span>
+<span class="hl kwd">sum</span><span class="hl std">(lm.test</span><span class="hl opt">$</span><span class="hl std">residuals</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 1.385319e+13
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#   13.85319e+12</span>
+</pre></div>
+</div></div>
+
+<p>Based on the linear data analysis, we'll try two different models.  The first will include the Open*Promo interaction variable because it had the lowest sum of squared residuals and the Store variable to predict Sales based on Store number.  The second model will be a linear model with no interaction terms and only the variables on the test set.</p>
+
+<div class="chunk" id="unnamed-chunk-11"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">lm</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">lm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">Store</span> <span class="hl opt">+</span> <span class="hl std">Open</span><span class="hl opt">*</span><span class="hl std">Promo)</span>
+<span class="hl kwd">summary</span><span class="hl std">(lm)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## lm(formula = Sales ~ Store + Open * Promo)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+##  -8262  -1587    -28    779  35600 
+## 
+## Coefficients:
+##                Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)  -3.447e+01  7.952e+00  -4.334 1.46e-05 ***
+## Store         6.172e-02  8.099e-03   7.621 2.52e-14 ***
+## Open1         5.929e+03  7.587e+00 781.472  &lt; 2e-16 ***
+## Promo1       -7.690e-02  2.571e+01  -0.003    0.998    
+## Open1:Promo1  2.299e+03  2.635e+01  87.256  &lt; 2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 2630 on 1017204 degrees of freedom
+## Multiple R-squared:  0.5335,	Adjusted R-squared:  0.5335 
+## F-statistic: 2.908e+05 on 4 and 1017204 DF,  p-value: &lt; 2.2e-16
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl std">lm_all</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">lm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">Store</span> <span class="hl opt">+</span> <span class="hl std">Open</span> <span class="hl opt">+</span> <span class="hl std">DayOfWeek</span> <span class="hl opt">+</span> <span class="hl std">Promo</span> <span class="hl opt">+</span> <span class="hl std">StateHoliday</span> <span class="hl opt">+</span> <span class="hl std">SchoolHoliday)</span>
+<span class="hl kwd">summary</span><span class="hl std">(lm_all)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## lm(formula = Sales ~ Store + Open + DayOfWeek + Promo + StateHoliday + 
+##     SchoolHoliday)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+##  -8440  -1613    -45    799  35178 
+## 
+## Coefficients:
+##                  Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)     9.036e+02  1.444e+01  62.573  &lt; 2e-16 ***
+## Store           6.162e-02  8.091e-03   7.616 2.61e-14 ***
+## Open1           5.553e+03  9.381e+00 591.982  &lt; 2e-16 ***
+## DayOfWeek      -1.397e+02  1.702e+00 -82.081  &lt; 2e-16 ***
+## Promo1          2.086e+03  5.876e+00 355.065  &lt; 2e-16 ***
+## StateHolidaya  -1.161e+03  2.041e+01 -56.868  &lt; 2e-16 ***
+## StateHolidayb  -1.592e+03  3.389e+01 -46.983  &lt; 2e-16 ***
+## StateHolidayc  -4.467e+02  4.234e+01 -10.550  &lt; 2e-16 ***
+## SchoolHoliday1  1.340e+02  7.114e+00  18.839  &lt; 2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 2627 on 1017200 degrees of freedom
+## Multiple R-squared:  0.5344,	Adjusted R-squared:  0.5344 
+## F-statistic: 1.46e+05 on 8 and 1017200 DF,  p-value: &lt; 2.2e-16
+</pre></div>
+</div></div>
+
+<p>The adjusted R-squared for the first model is 0.5335.  The adjusted R-squared for the second model is 0.5344; meaning that adding the remaining variables only explains 0.09% more of the data.</p>
+
+<p>Now, let's split the data into training and testing sets to find MSEs to compare our two linear models.</p>
+
+<div class="chunk" id="unnamed-chunk-12"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">set.seed</span><span class="hl std">(</span><span class="hl num">516</span><span class="hl std">)</span>
+<span class="hl std">train_ind</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">sample</span><span class="hl std">(</span><span class="hl kwd">nrow</span><span class="hl std">(data),</span> <span class="hl kwc">size</span> <span class="hl std">=</span> <span class="hl kwd">nrow</span><span class="hl std">(data)</span><span class="hl opt">/</span><span class="hl num">2</span><span class="hl std">)</span>
+<span class="hl std">train</span> <span class="hl kwb">&lt;-</span> <span class="hl std">data[train_ind, ]</span>
+<span class="hl std">test</span> <span class="hl kwb">&lt;-</span> <span class="hl std">data[</span><span class="hl opt">-</span><span class="hl std">train_ind, ]</span>
+</pre></div>
+</div></div>
+
+<p>Let's find the MSEs based on the test dataset.  We save the predicted values and then calculate the MSEs and compare them.</p>
+
+<div class="chunk" id="unnamed-chunk-13"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">lin_preds</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">predict</span><span class="hl std">(lm,</span> <span class="hl kwc">newdata</span> <span class="hl std">= test)</span>
+<span class="hl std">all_preds</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">predict</span><span class="hl std">(lm_all,</span> <span class="hl kwc">newdata</span> <span class="hl std">= test)</span>
+<span class="hl std">lin_mse</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">mean</span><span class="hl std">((test</span><span class="hl opt">$</span><span class="hl std">Sales</span> <span class="hl opt">-</span> <span class="hl std">lin_preds)</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+<span class="hl std">all_mse</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">mean</span><span class="hl std">((test</span><span class="hl opt">$</span><span class="hl std">Sales</span> <span class="hl opt">-</span> <span class="hl std">all_preds)</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+
+<span class="hl std">lin_mse</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 6897712
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl std">all_mse</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 6882006
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl std">lin_mse</span> <span class="hl opt">-</span> <span class="hl std">all_mse</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 15706.27
+</pre></div>
+</div></div>
+
+<p>The second linear model's MSE is lower and therefore, a better predictive model.</p>
+
+<p>Now, let's use cross-validation via K-folds to see how well our model performs.  We'll use K = 10.</p>
+
+<div class="chunk" id="unnamed-chunk-14"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">library</span><span class="hl std">(boot)</span>
+<span class="hl kwd">set.seed</span><span class="hl std">(</span><span class="hl num">516</span><span class="hl std">)</span>
+<span class="hl std">glm.fit.1</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">glm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">Store</span> <span class="hl opt">+</span> <span class="hl std">Open</span><span class="hl opt">*</span><span class="hl std">Promo,</span> <span class="hl kwc">data</span> <span class="hl std">= data)</span>
+<span class="hl std">glm.fit.2</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">glm</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">Store</span> <span class="hl opt">+</span> <span class="hl std">Open</span> <span class="hl opt">+</span> <span class="hl std">DayOfWeek</span> <span class="hl opt">+</span> <span class="hl std">Promo</span> <span class="hl opt">+</span> <span class="hl std">StateHoliday</span> <span class="hl opt">+</span> <span class="hl std">SchoolHoliday,</span> <span class="hl kwc">data</span> <span class="hl std">= data)</span>
+
+<span class="hl std">cv.glm.1</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">cv.glm</span><span class="hl std">(</span><span class="hl kwc">data</span> <span class="hl std">= data,</span> <span class="hl kwc">glmfit</span> <span class="hl std">= glm.fit.1,</span> <span class="hl kwc">K</span> <span class="hl std">=</span> <span class="hl num">10</span><span class="hl std">)</span>
+<span class="hl std">cv.glm.2</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">cv.glm</span><span class="hl std">(</span><span class="hl kwc">data</span> <span class="hl std">= data,</span> <span class="hl kwc">glmfit</span> <span class="hl std">= glm.fit.2,</span> <span class="hl kwc">K</span> <span class="hl std">=</span> <span class="hl num">10</span><span class="hl std">)</span>
+
+<span class="hl std">cv.error.1</span> <span class="hl kwb">&lt;-</span> <span class="hl std">cv.glm.1</span><span class="hl opt">$</span><span class="hl std">delta[</span><span class="hl num">1</span><span class="hl std">]</span>
+<span class="hl std">cv.error.2</span> <span class="hl kwb">&lt;-</span> <span class="hl std">cv.glm.2</span><span class="hl opt">$</span><span class="hl std">delta[</span><span class="hl num">1</span><span class="hl std">]</span>
+
+<span class="hl std">cv.error.1</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 6914573
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl std">cv.error.2</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 6900513
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl std">cv.error.1</span> <span class="hl opt">-</span> <span class="hl std">cv.error.2</span> <span class="hl com">#cv.error.2 is lower</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 14059.4
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">summary</span><span class="hl std">(glm.fit.1)</span> <span class="hl com">#AIC 18,906,886</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## glm(formula = Sales ~ Store + Open * Promo, data = data)
+## 
+## Deviance Residuals: 
+##    Min      1Q  Median      3Q     Max  
+##  -8262   -1587     -28     779   35600  
+## 
+## Coefficients:
+##                Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)  -3.447e+01  7.952e+00  -4.334 1.46e-05 ***
+## Store         6.172e-02  8.099e-03   7.621 2.52e-14 ***
+## Open1         5.929e+03  7.587e+00 781.472  &lt; 2e-16 ***
+## Promo1       -7.690e-02  2.571e+01  -0.003    0.998    
+## Open1:Promo1  2.299e+03  2.635e+01  87.256  &lt; 2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## (Dispersion parameter for gaussian family taken to be 6914546)
+## 
+##     Null deviance: 1.5077e+13  on 1017208  degrees of freedom
+## Residual deviance: 7.0335e+12  on 1017204  degrees of freedom
+## AIC: 18906886
+## 
+## Number of Fisher Scoring iterations: 2
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">summary</span><span class="hl std">(glm.fit.2)</span> <span class="hl com">#AIC 18,879,316</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Call:
+## glm(formula = Sales ~ Store + Open + DayOfWeek + Promo + StateHoliday + 
+##     SchoolHoliday, data = data)
+## 
+## Deviance Residuals: 
+##    Min      1Q  Median      3Q     Max  
+##  -8440   -1613     -45     799   35178  
+## 
+## Coefficients:
+##                  Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)     9.036e+02  1.444e+01  62.573  &lt; 2e-16 ***
+## Store           6.162e-02  8.091e-03   7.616 2.61e-14 ***
+## Open1           5.553e+03  9.381e+00 591.982  &lt; 2e-16 ***
+## DayOfWeek      -1.397e+02  1.702e+00 -82.081  &lt; 2e-16 ***
+## Promo1          2.086e+03  5.876e+00 355.065  &lt; 2e-16 ***
+## StateHolidaya  -1.161e+03  2.041e+01 -56.868  &lt; 2e-16 ***
+## StateHolidayb  -1.592e+03  3.389e+01 -46.983  &lt; 2e-16 ***
+## StateHolidayc  -4.467e+02  4.234e+01 -10.550  &lt; 2e-16 ***
+## SchoolHoliday1  1.340e+02  7.114e+00  18.839  &lt; 2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## (Dispersion parameter for gaussian family taken to be 6900496)
+## 
+##     Null deviance: 1.5077e+13  on 1017208  degrees of freedom
+## Residual deviance: 7.0192e+12  on 1017200  degrees of freedom
+## AIC: 18904821
+## 
+## Number of Fisher Scoring iterations: 2
+</pre></div>
+</div></div>
+
+<p>The second linear model with all variables also had a lower MSE; therefore, a better predictive model. The AIC from the second model is also slightly lower.  So, this confirms what the validation set exercise did: predict using this model.</p>
+
+<p>Let's try a <b>Regression Tree</b> model now.  We will only focus on the second model because trees cannot handle interaction terms.</p>
+
+<div class="chunk" id="unnamed-chunk-15"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">library</span><span class="hl std">(tree)</span>
+<span class="hl kwd">set.seed</span><span class="hl std">(</span><span class="hl num">516</span><span class="hl std">)</span>
+<span class="hl std">tree.data</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">tree</span><span class="hl std">(Sales</span> <span class="hl opt">~</span> <span class="hl std">Store</span> <span class="hl opt">+</span> <span class="hl std">Open</span> <span class="hl opt">+</span> <span class="hl std">DayOfWeek</span> <span class="hl opt">+</span> <span class="hl std">Promo</span> <span class="hl opt">+</span> <span class="hl std">StateHoliday</span> <span class="hl opt">+</span> <span class="hl std">SchoolHoliday, data,</span> <span class="hl kwc">subset</span> <span class="hl std">= train_ind)</span>
+
+<span class="hl kwd">summary</span><span class="hl std">(tree.data)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 
+## Regression tree:
+## tree(formula = Sales ~ Store + Open + DayOfWeek + Promo + StateHoliday + 
+##     SchoolHoliday, data = data, subset = train_ind)
+## Variables actually used in tree construction:
+## [1] &quot;Open&quot;      &quot;Promo&quot;     &quot;DayOfWeek&quot;
+## Number of terminal nodes:  4 
+## Residual mean deviance:  6708000 = 3.412e+12 / 508600 
+## Distribution of residuals:
+##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+## -9758.0 -1553.0     0.0     0.0   760.6 32440.0
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">plot</span><span class="hl std">(tree.data)</span>
+<span class="hl kwd">text</span><span class="hl std">(tree.data,</span> <span class="hl kwc">pretty</span> <span class="hl std">=</span> <span class="hl num">0</span><span class="hl std">)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-15-1.png" title="plot of chunk unnamed-chunk-15" alt="plot of chunk unnamed-chunk-15" class="plot" /></div></div>
+
+<p>Now, let's predict the test data set using the tree.data:</p>
+
+<div class="chunk" id="unnamed-chunk-16"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">pred_tree</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">predict</span><span class="hl std">(tree.data, test)</span>
+<span class="hl kwd">mean</span><span class="hl std">((pred_tree</span> <span class="hl opt">-</span> <span class="hl std">test</span><span class="hl opt">$</span><span class="hl std">Sales)</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 6666517
+</pre></div>
+</div></div>
+
+<p>The MSE from the Regression Tree is slighty lower; meaning it might be a better model for predicting.</p>
+
+<p>Let's continue to look at the tree.data</p>
+
+<div class="chunk" id="unnamed-chunk-17"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">qplot</span><span class="hl std">(pred_tree, test</span><span class="hl opt">$</span><span class="hl std">Sales)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-17-1.png" title="plot of chunk unnamed-chunk-17" alt="plot of chunk unnamed-chunk-17" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">plot</span><span class="hl std">(pred_tree, pred_tree</span> <span class="hl opt">-</span> <span class="hl std">test</span><span class="hl opt">$</span><span class="hl std">Sales)</span>
+<span class="hl kwd">abline</span><span class="hl std">(</span><span class="hl kwc">h</span> <span class="hl std">=</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl kwc">col</span> <span class="hl std">=</span> <span class="hl str">'red'</span><span class="hl std">)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-17-2.png" title="plot of chunk unnamed-chunk-17" alt="plot of chunk unnamed-chunk-17" class="plot" /></div></div>
+
+<p>The second plot shows that the residuals are not centered around zero, and therefore confirm again that we should concentrate on the linear model.</p>
+
+<p>We can cross-validate the tree data.</p>
+
+<div class="chunk" id="unnamed-chunk-18"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">cv.tree.data</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">cv.tree</span><span class="hl std">(tree.data)</span>
+<span class="hl kwd">plot</span><span class="hl std">(cv.tree.data</span><span class="hl opt">$</span><span class="hl std">size, cv.tree.data</span><span class="hl opt">$</span><span class="hl std">dev,</span> <span class="hl kwc">type</span> <span class="hl std">=</span> <span class="hl str">'b'</span><span class="hl std">)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-18-1.png" title="plot of chunk unnamed-chunk-18" alt="plot of chunk unnamed-chunk-18" class="plot" /></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl std">cv.tree.data</span><span class="hl opt">$</span><span class="hl std">size[</span><span class="hl kwd">which.min</span><span class="hl std">(cv.tree.data</span><span class="hl opt">$</span><span class="hl std">dev)]</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 4
+</pre></div>
+</div></div>
+
+<p>We should use prune_tree with 4 predictors.  (which is how many were on the original Regression Tree)</p>
+
+<div class="chunk" id="unnamed-chunk-19"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">prune.data</span> <span class="hl kwb">=</span> <span class="hl kwd">prune.tree</span><span class="hl std">(tree.data,</span> <span class="hl kwc">best</span> <span class="hl std">=</span> <span class="hl num">4</span><span class="hl std">)</span>
+<span class="hl kwd">plot</span><span class="hl std">(prune.data)</span>
+<span class="hl kwd">text</span><span class="hl std">(prune.data,</span> <span class="hl kwc">pretty</span> <span class="hl std">=</span> <span class="hl num">0</span><span class="hl std">)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-19-1.png" title="plot of chunk unnamed-chunk-19" alt="plot of chunk unnamed-chunk-19" class="plot" /></div></div>
+
+<p>This confirms what we suspected, that the cross-validation tree is the same tree.</p>
+
+<p>The final model we can try is the <b>Random Forest</b> model.</p>
+
+<div class="chunk" id="unnamed-chunk-20"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">library</span><span class="hl std">(randomForest)</span>
+</pre></div>
+<div class="message"><pre class="knitr r">## randomForest 4.6-12
+## Type rfNews() to see new features/changes/bug fixes.
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">##  rf.data &lt;- randomForest(Sales ~ . -Date -Customers, data = data, subset = train_ind, mtry = 6, importance = TRUE)</span>
+</pre></div>
+</div></div>
+
+<p>The code above is commented out because R tried running a Random Forest model, but R ran for 2 hours then crashed.  We tried this multiple times and always received the same error.  We believe this is because the dataset is very large.</p>
+
+<p>In conclusion, because the second linear model has the lowest MSE, we believe this model will provide the best prediction on the real test data.  Although this model is very basic (just all of the variables added together), we did our data analysis and compared it to different types of models.</p>
+
+<p>Thanks for a great class!  We learned many topics and provided our analysis of different models on a real dataset.</p>
+
+<p>Adam Hackett & Chip Huggins</p>
+
+
+</body>
+</html>

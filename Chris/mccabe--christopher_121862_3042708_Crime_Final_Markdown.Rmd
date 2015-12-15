@@ -1,0 +1,629 @@
+---
+title: "Crime_Project"
+author: "Chris"
+date: "Wednesday December 2, 2015"
+output: html_document
+---
+
+The goal is to plot gis points of crime in Denver, see patterns and predict the incidences of crime or see the clusters. To start I am not sure on the focus of the project, but I am leaning towards violent crime. At the end, I am going to try and see 
+
+1)Initial EDA, just to see the basis of the data that I am looking at. 
+
+```{r}
+crime <-read.csv("C:/Users/BandC/Desktop/Predictive Model/crime.csv")
+attach(crime)
+summary(crime)
+str(crime)
+dim(crime)
+names(crime)
+str(INCIDENT_ID)
+summary(INCIDENT_ID)#irrelevant
+summary(OFFENSE_ID)
+summary(OFFENSE_CODE)
+summary(OFFENSE_CODE_EXTENSION)
+summary(OFFENSE_TYPE_ID)#This might prove to be useful, the others are not thus far, table
+summary(OFFENSE_CATEGORY_ID)#For crime, this will also prove to be useful,table 
+summary(FIRST_OCCURENCE_DATE)
+summary(REPORTED_DATE)# This will be useful to gather data on when they occured, table
+summary(INCIDENT_ADDRESS)#Should look at top 5 to 10, maybe break it down by GIS
+summary(GEO_X)#Irrelevant
+summary(GEO_Y)#Irrelevant
+summary(GEO_LON)#Irrelevant
+summary(GEO_LAT)#Irrelevant
+names(crime)
+summary(DISTRICT_ID)#Put in table
+summary(PRECINCT_ID)#Put in tables
+summary(NEIGHBORHOOD_ID)#Will look at specific hoods for further investigation
+summary(IS_CRIME)#irrelevant
+summary(IS_TRAFFIC)#irrelevant
+
+
+```
+
+Before moving to plots, I want to look at some tables and possibly proportions to see if this gives any insight into what is most common and other factors to keep in mind.
+
+```{r}
+str(crime)
+table(INCIDENT_ID)#This is not relevant, instead of crime ID, it is the chronological ID, which will probably not prove to be super helpful
+table(OFFENSE_ID)
+ID=head(OFFENSE_ID,5)
+ID
+prop.table(ID)#When looking at crime, instead of going for all crime, which might not be useful, due to the sheer volume of traffic tickets, jaywalking...etc. I might narrow it down later to look at just crimes against persons or property crime. I will re-evaluate the goal in a bit
+table(OFFENSE_CODE)
+prop.table(OFFENSE_CODE)
+head(subset(crime[order(OFFENSE_CODE, decreasing=T),])[1:5]
+?rank
+names(crime)
+
+sort(table(crime$OFFENSE_CODE), decreasing=TRUE)[1:5]# The top five most common
+most_common=crime[which(OFFENSE_CODE==5441| OFFENSE_CODE==2999 | OFFENSE_CODE==5401 | OFFENSE_CODE==2305 | OFFENSE_CODE==2999),]
+most_common
+names(most_common)
+most_commontwo <-subset(crime, OFFENSE_CODE==5441| OFFENSE_CODE==2999 | OFFENSE_CODE==5401 | OFFENSE_CODE==2305 | OFFENSE_CODE==2999, select=c(DISTRICT_ID, PRECINCT_ID))
+most_commontwo
+head(most_commontwo)
+table(most_commontwo)
+prop.table(most_commontwo)
+names(crime)
+head(crime$OFFENSE_CODE)
+table(crime$OFFENSE_CODE)
+head(crime$OFFENSE_CODE, des)
+code=crime[order(OFFENSE_CODE),]
+code
+sort(table(OFFENSE_CODE),decreasing=TRUE)[1:3]
+head(OFFENSE_CODE_EXTENSION)
+tail(OFFENSE_CODE_EXTENSION)
+summary(OFFENSE_CODE_EXTENSION)#PROBABLY NOT VERY USEFUL
+head(OFFENSE_TYPE_ID)
+tail(OFFENSE_TYPE_ID)
+table(OFFENSE_TYPE_ID)
+type=crime[order(OFFENSE_TYPE_ID),]
+
+type
+sort(table(OFFENSE_TYPE_ID),decreasing=TRUE)[1:3]
+
+head(OFFENSE_CATEGORY_ID)
+tail(OFFENSE_CATEGORY_ID)
+table(OFFENSE_CATEGORY_ID)#This is a good breakdown of the crimes, violent, auto..etc. subsetting these will probably prove to be useful for graphing and predicting
+head(FIRST_OCCURRENCE_DATE)
+head(LAST_OCCURRENCE_DATE)#Not sure the significance of these two, will probably drop these rows, as they are not the reported date
+names(crime)
+head(REPORTED_DATE)
+#MIGHT WANT TO CHANGE DATE AND LEAVE OUT TIME (HOUR) OR CREATE A NEW COLUMN OR TWO WITH DATE ONLY AND MONTH ONLY
+table(REPORTED_DATE)
+day=sort(table(REPORTED_DATE),decreasing=TRUE)[1:5]
+day
+names(crime)
+head(INCIDENT_ADDRESS)
+sort(table(INCIDENT_ADDRESS),decreasing=TRUE)[1:3]#Looks like no address given is most common, but maybe it will be given a lat and long
+head(GEO_X)
+sort(table(GEO_X),decreasing=TRUE)[1:3]#Still common with no X
+head(GEO_LON)
+sort(table(GEO_LON),decreasing=TRUE)[1:3]#LONGITUDE GIVEN 
+sort(table(GEO_LAT),decreasing=TRUE)[1:3]#LAT AND LON MATCH WITH TABLE HAVE SAME NUMBER OTHER THAN COORDINATE, 39.73, -104.98, WILL PLOT ON GEO MAP AND SEE IF CAN FIND MATCHING ADDRESS
+head(DISTRICT_ID)
+table(DISTRICT_ID)#This will be useful to breakdown district and what is going and then subset with type of crime
+head(PRECINCT_ID)
+table(PRECINCT_ID)#More precincts than districts, will need to match a precinct with district, 32 precincts will not be an exact match to 7 districts, so some will cross-over
+unique(crime$PRECINCT_ID)
+head(NEIGHBORHOOD_ID)
+table(NEIGHBORHOOD_ID)
+sort(table(NEIGHBORHOOD_ID),decreasing=TRUE)[1:10]#Shows the neighborhoods with the most reported crime 
+head(IS_CRIME)
+table(IS_CRIME)#It is coded as 0 and 1, nothing else
+head(IS_TRAFFIC)#It looks like Is_CRIME and IS_TRAFFIC are inversly related, if one is a 0 the other is 1. Will probably get rid of IS_TRAFFIC because traffic indcidents are not of interest
+```{r}
+
+```
+The above was not necessary for every variable, but I like to do it before graphing to see if anything can be determined from the data and it looks like some will be very valuable where others intersect with other variables and are essentially duplicates. 
+
+Graphing: Initial Graphs, GIS graphs and more intuitive graphs to follow
+
+```{r}
+library(ggplot2)
+str(crime)
+hist(crime$INCIDENT_ID)
+hist(OFFENSE_CODE)
+qplot(day,binwidth=30)#Will need to adjust binwidth
+names(crime)
+?frequency
+require(graphics)
+frequency(REPORTED_DATE)#Will try a frequency plot in another format
+time(REPORTED_DATE)
+qplot(OFFENSE_TYPE_ID)
+qplot(OFFENSE_CATEGORY_ID)
+plot(OFFENSE_CATEGORY_ID)
+ADDY=sort(table(INCIDENT_ADDRESS),decreasing=TRUE)[1:3]
+qplot(ADDY)#Will need to change up
+qplot(DISTRICT_ID)
+qplot(PRECINCT_ID)
+qplot(NEIGHBORHOOD_ID)
+qplot(OFFENSE_TYPE_ID, DISTRICT_ID)
+qplot(DISTRICT_ID, OFFENSE_TYPE_ID, xlab="District",ylab="Type", main="Type by District", col=IS_CRIME)#Will need to narrow this down to be useful
+
+
+```
+In order to narrow down violent crime and crime against persons, I am going to create a new data frame that only has that information. 
+
+```{r}
+head(crime)
+table(OFFENSE_CATEGORY_ID)#I am going to use aggravated-assault, other-crimes-against-persons, murder, robbery and sexual assualt
+newdata <-subset(crime, OFFENSE_CATEGORY_ID=="aggravated-assault"|OFFENSE_CATEGORY_ID=="other-crimes-against-persons"|OFFENSE_CATEGORY_ID=="murder"|OFFENSE_CATEGORY_ID=="robbery"|OFFENSE_CATEGORY_ID=="sexual-assault")
+
+head(newdata)
+str(newcrimedata)#The total did go down a considerable amount, but I knew this since I am only interested in violent crime
+dim(newdata)
+
+
+```
+With the focus clear on violent crime, I want to look at this new data set by looking at graphs and structure. 
+```{r}
+attach(newdata)
+names(newdata)
+table(newdata$OFFENSE_CATEGORY_ID)
+length(newdata$OFFENSE_CATEGORY_ID)
+table(newdata$OFFENSE_CATEGORY_ID)/length(newdata$OFFENSE_CATEGORY_ID)
+library(ggplot2)
+qplot(newdata$OFFENSE_CATEGORY_ID)#Other-crimes-against is the head
+table(DISTRICT_ID)
+hist(DISTRICT_ID, col=2)
+qplot(NEIGHBORHOOD_ID, col=3, breaks=12,zoom=10)
+table(IS_CRIME)
+pairs(newdata)#Just to see if they are correlated in any way, not helpful
+names(newdata)
+qplot(DISTRICT_ID, PRECINCT_ID, data = newdata, col = OFFENSE_CATEGORY_ID,
+      main = "DISTRICT", xlab="DIST_ID",
+      ylab='PRECINCT')
+
+qplot(DISTRICT_ID, data = newdata, col = OFFENSE_CATEGORY_ID,
+      main = "DISTRICT", xlab="DIST_ID",
+      )#sHOWS THE BREAKDOWN FOR EACH DISTRICT, PRETTY GOOD INFO
+summary(OFFENSE_CATEGORY_ID)
+qplot(PRECINCT_ID, data = newdata, col = OFFENSE_CATEGORY_ID,
+      main = "CAT/DIST", xlab="CAT_ID",
+     )
+table(DISTRICT_ID)#Disrict  has very little crime
+
+par=par(mfrow=c(4,3))
+qplot(OFFENSE_CATEGORY_ID[DISTRICT_ID == 1], xlab="CATEGORY",
+      main = "DISTRICT 1", col="IS_CRIME")
+qplot(OFFENSE_CATEGORY_ID[DISTRICT_ID == 2], xlab="CATEGORY",
+      main = "DISTRICT 2", col="IS_CRIME")
+qplot(OFFENSE_CATEGORY_ID[DISTRICT_ID == 3], xlab="CATEGORY",
+      main = "DISTRICT 3", col="IS_CRIME")
+qplot(OFFENSE_CATEGORY_ID[DISTRICT_ID == 4], xlab="CATEGORY",
+      main = "DISTRICT 4", col="IS_CRIME")
+qplot(OFFENSE_CATEGORY_ID[DISTRICT_ID == 5], xlab="CATEGORY",
+      main = "DISTRICT 5", col="IS_CRIME")
+qplot(OFFENSE_CATEGORY_ID[DISTRICT_ID == 6], xlab="CATEGORY",
+      main = "DISTRICT 6", col="IS_CRIME")
+qplot(OFFENSE_CATEGORY_ID[DISTRICT_ID == 7], xlab="CATEGORY",
+      main = "DISTRICT 7", col="IS_CRIME")#These show essentially what the table said but it is a good visual and shows how they change over districts and how the proportion is within a district
+
+
+
+
+```
+I want to try and look at times in a frequency table and see the days with most crime
+
+```{r}
+names(newdata)
+newdata$REPORTED_DATE = as.Date(newdata$REPORTED_DATE, '%m/%d/%Y')
+
+#plot date
+qplot(newdata$REPORTED_DATE, binwidth=10)#peak in summer months
+dayTWO=sort(table(newdata$REPORTED_DATE),decreasing=TRUE)[1:30]
+dayTWO
+
+qplot(newdata$REPORTED_DATE, binwidth=.1)
+
+
+
+
+```
+We can try to plot this also on a map of Denver since we have long and lat. I am going to break each district into a map to see where they are located in Denver. 
+```{r}
+names(newdata)
+library(ggmap)
+
+qmap('Denver', zoom=15)
+Denver = qmap("Denver", zoom = 11)
+Denver
+Denver + geom_point(data=newdata, aes(x=GEO_LON, y=GEO_LAT), 
+                              color="dark green", alpha=.15, size=2)
+
+newdata1 <-subset(crime, OFFENSE_CATEGORY_ID=="aggravated-assault"|OFFENSE_CATEGORY_ID=="other-crimes-against-persons"|OFFENSE_CATEGORY_ID=="murder"|OFFENSE_CATEGORY_ID=="robbery"|OFFENSE_CATEGORY_ID=="sexual-assault"&DISTRICT_ID=1)
+newdatafirst<-subset(crime, DISTRICT_ID=1)
+summary(newdatafirst)
+str(newdatafirst)
+dim(newdatafirst)
+Denver + geom_point(data=newdata1, aes(x=GEO_LON, y=GEO_LAT), 
+                              color="light green", alpha=.15, size=2)#subset not working properly
+districtone<-subset(crime, DISTRICT_ID==1)
+str(districtone)
+library(ggmap)
+Denver + geom_point(data=districtone, aes(x=GEO_LON, y=GEO_LAT), 
+                              color="light green", alpha=.15, size=5)
+districtwo<-subset(crime, DISTRICT_ID==2)
+str(districtwo)
+
+Denver + geom_point(data=districtwo, aes(x=GEO_LON, y=GEO_LAT), 
+                              color="light green", alpha=.15, size=5)
+districthree<-subset(crime, DISTRICT_ID==3)
+str(districthree)
+library(ggmap)
+Denver + geom_point(data=districthree, aes(x=GEO_LON, y=GEO_LAT), 
+                              color="light green", alpha=.15, size=5)
+
+districtfour<-subset(crime, DISTRICT_ID==4)
+str(districtfour)
+
+Denver + geom_point(data=districtfour, aes(x=GEO_LON, y=GEO_LAT), 
+                              color="light green", alpha=.15, size=5)
+
+districtfive<-subset(crime, DISTRICT_ID==5)
+str(districtfive)
+
+Denver + geom_point(data=districtfive, aes(x=GEO_LON, y=GEO_LAT), 
+                              color="light green", alpha=.15, size=5)
+
+districtsix<-subset(crime, DISTRICT_ID==6)
+str(districtsix)
+
+Denver + geom_point(data=districtsix, aes(x=GEO_LON, y=GEO_LAT), 
+                              color="light green", alpha=.15, size=5)
+
+districtseven<-subset(crime, DISTRICT_ID==7)
+str(districtseven)
+
+Denver + geom_point(data=districtseven, aes(x=GEO_LON, y=GEO_LAT), 
+                              color="light green", alpha=.15, size=.5)
+table(districtseven$NEIGHBORHOOD_ID)#By dia
+
+Denver + geom_point(data=districtseven, aes(x=GEO_LON, y=GEO_LAT), 
+                              color="light green", alpha=.15, size=50)
+
+
+murders<-subset(crime, OFFENSE_CATEGORY_ID="homicide")
+
+str(murders)
+table(murders$DISTRICT_ID)
+
+Denver + geom_point(data=murders, aes(x=GEO_LON, y=GEO_LAT), 
+                              color="red", alpha=.15, size=5)
+install.packages("rworldmap")             
+ library(rworldmap)
+ newmap <- getMap(resolution = "low")
+plot(newmap, xlim = c(-105.2, -104.8), ylim = c(39.6, 39.9))
+points(murders$GEO_LON, murders$GEO_LAT, col = "red", cex = .05)
+detach(murders)
+summary(crime$OFFENSE_CATEGORY_ID)
+
+murder1<-subset(crime, OFFENSE_CATEGORY_ID="murder")
+table(murder1$DISTRICT_ID)
+
+```
+Will need to look at the data in different map form
+```{r}
+rm(list=ls())
+crime <-read.csv("C:/Users/BandC/Desktop/Predictive Model/crime.csv")
+attach(crime)
+summary(crime)
+library(ggplot2)
+library(ggmap)
+
+murders<-subset(crime, OFFENSE_CATEGORY_ID=="murder")
+str(murders)
+dim(murders)
+library(rworldmap)
+qmap('Denver', zoom=15)
+Denver = qmap("Denver", zoom = 11)
+Denver + geom_point(data=murders, aes(x=GEO_LON, y=GEO_LAT), 
+                              color="red", alpha=.15, size=5)
+ newmap <- getMap(resolution = "low")
+newmap
+plot(newmap, xlim = c(-105.2, -104.8), ylim = c(39.6, 39.9))
+points(murders$GEO_LON, murders$GEO_LAT, col = "red", cex = .05)# Not as good as the above map
+
+violent<-subset(crime, OFFENSE_CATEGORY_ID=="murder"|OFFENSE_CATEGORY_ID=="aggravated-assault")
+qmap('Denver', zoom=15)
+Denver = qmap("Denver", zoom = 11)
+Denver + geom_point(data=violent, aes(x=GEO_LON, y=GEO_LAT), 
+                              color="red", alpha=.15, size=5)#can start to see where the high concentrations of violent crime are
+# Will want to look at districts too
+# Want to look at concentrations by type of crime
+type<-subset(crime, DISTRICT_ID==1)
+head(type)
+
+
+Den_con <- get_map(location = 'Denver', source = 'stamen', maptype = 'toner')
+ggmap(Den_con) +
+  geom_point(size=5, alpha = 1/2, aes(GEO_X,GEO_Y, color=type$OFFENSE_CATEGORY_ID), data=type)
+
+type2<-subset(crime, DISTRICT_ID==2)
+head(type2)
+
+
+Den_con <- get_map(location = 'Denver', source = 'stamen', maptype = 'toner')
+ggmap(Den_con) + geom_point(size=5, alpha = 1/2, aes(GEO_X,GEO_Y, color=OFFENSE_CATEGORY_ID), data=type2)
+ggmap(Den_con) + stat_bin2d(aes(x = GEO_X, y = GEO_Y, color = OFFENSE_CATEGORY_ID, fill = OFFENSE_CATEGORY_ID), size = 2.5, bins = 30, alpha = 1/2, data = crime) + xlim(c(-105.4,-104.6)) + ylim(c(39.4,40.0))
+
+district1<-subset(crime, DISTRICT_ID==1)
+str(district1)
+dim(district1)
+library(rworldmap)
+qmap('Denver', zoom=15)
+Denver = qmap("Denver", zoom = 11)
+Denver + geom_point(data=district1, aes(x=GEO_LON, y=GEO_LAT), 
+                              color="red", alpha=.15, size=5)
+
+library(ggmap)
+district3<-subset(crime, DISTRICT_ID==3)
+qmap('Denver', zoom=15)
+Denver = qmap("Denver", zoom = 11)
+Denver + geom_point(data=district3, aes(x=GEO_LON, y=GEO_LAT), 
+                              color="red", alpha=.15, size=5)
+district4<-subset(crime, DISTRICT_ID==4 & OFFENSE_CATEGORY_ID=="aggravated-assault")
+str(district4)
+dim(district4)
+qmap('Denver', zoom=15)
+Denver = qmap("Denver", zoom = 11)
+Denver + geom_point(data=district4, aes(x=GEO_LON, y=GEO_LAT), 
+                              color="red", alpha=.15, size=5)
+district5<-subset(crime, DISTRICT_ID==5 & OFFENSE_CATEGORY_ID=="aggravated-assault")
+str(district5)
+qmap('Denver', zoom=15)
+Denver = qmap("Denver", zoom = 11)
+Denver + geom_point(data=district5, aes(x=GEO_LON, y=GEO_LAT), 
+                              color="red", alpha=.15, size=5)
+district6<-subset(crime, DISTRICT_ID==6 & OFFENSE_CATEGORY_ID=="aggravated-assault")
+str(district6)
+qmap('Denver', zoom=15)
+Denver = qmap("Denver", zoom = 11)
+Denver + geom_point(data=district6, aes(x=GEO_LON, y=GEO_LAT), 
+                              color="red", alpha=.15, size=5)
+
+district7<-subset(crime, DISTRICT_ID==7 & OFFENSE_CATEGORY_ID=="aggravated-assault")
+str(district7)
+qmap('Denver', zoom=15)
+Denver = qmap("Denver", zoom = 11)
+Denver + geom_point(data=district7, aes(x=GEO_LON, y=GEO_LAT), 
+                              color="blue", alpha=.15, size=5)#Not very concentrated
+
+```
+Focusing on crime that is violent. I am going to plot and GIS those instances on a map. First, I am going to get rid of the N/A values with no time or location. I am doing this because I think having a time and locating, 100% accuracy is necessary. Will omit some variables too
+```
+```{r}
+names(crime)
+table(crime$OFFENSE_CATEGORY_ID)
+finaldata=subset(crime, OFFENSE_CATEGORY_ID=="aggravated-assault" | OFFENSE_CATEGORY_ID=="other-crimes-against-persons" | OFFENSE_CATEGORY_ID=="murder" | OFFENSE_CATEGORY_ID=="robbery" | OFFENSE_CATEGORY_ID=="sexual-assualt")
+summary(finaldata)
+dim(finaldata)#much less
+names(finaldata)
+finaldata$IS_CRIME<-NULL #Dropping this variable, since all will be one, since all are violent crime
+names(finaldata)
+finaldata$IS_TRAFFIC<-NULL
+
+names(finaldata)#Now 17 variables, dropped the two Traffic and Crime, since I am not interested in traffic
+
+pairs(finaldata)#not super revealing but cool 
+head(finaldata)
+table(finaldata$DISTRICT_ID)#Highest is 3
+
+qplot(finaldata$REPORTED_DATE, binwidth=1)#peak in summer months
+days=sort(table(finaldata$REPORTED_DATE),decreasing=TRUE)[1:30]
+days
+
+head(finaldata)
+
+finaldata$GEO_X<-NULL
+
+finaldata$GEO_Y<-NULL #These two are duplicated by the GEO_lon and GEO_lat, which are more complete anyways 
+names(finaldata)
+first_cont=subset(crime, OFFENSE_CATEGORY_ID=="aggravated-assault" | OFFENSE_CATEGORY_ID=="other-crimes-against-persons" | OFFENSE_CATEGORY_ID=="murder" | OFFENSE_CATEGORY_ID=="robbery" | OFFENSE_CATEGORY_ID=="sexual-assualt" & DISTRICT_ID==4)
+
+```
+
+To start looking at models and the data in a better way, I want to do a heirachal clustering. Since it is geographic data, longitude and latitude, I researched some different packages that do clustering with geo distances. Below you will find a few different ways in which I performed clustering
+
+```{r}
+
+library(geosphere)
+
+plot(first_cont$GEO_LON,first_cont$GEO_LAT)
+d= as.matrix(dist(cbind(first_cont$GEO_LON,first_cont$GEO_LAT)))
+d=as.dist(d)
+hc<-hclust(d)
+plot(hc)#Shows cluster diagram based on GEO
+first_cont$clust <- cutree(hc,k=7)#7 points, for the 7 districts
+plot(first_cont$GEO_LON,first_cont$GEO_LAT, col=c("red","blue","green")[first_cont$clust],pch=19)
+
+
+```
+Another approach to Geographic data in clustering
+
+```{r}
+install.packages("fields")
+library(fields)
+dist <- rdist.earth(first_cont,miles = F,R=6371) 
+fit <- hclust(as.dist(dist), method = "single")
+clusters <- cutree(fit,h = 1000) 
+plot(first_cont$GEO_LON, first_cont$GEO_LAT, col = clusters, pch = 20)
+
+```
+
+With a different cut from the original clustering problem
+
+```{r}
+library(geosphere)
+library(fossil)
+d2      <- earth.dist(first_cont)   # distance matrix
+hc2     <- hclust(d2)      # hierarchical clustering
+plot(hc2)                 # dendrogram suggests 4 clusters
+clust <- cutree(hc2,k=4)
+clust
+install.packages("rgdal")
+library(rdgal)
+library(ggplot2)
+library(ggmap)
+map1 <-qmap('Denver', zoom=15)
+Denver1 <- qmap("Denver", zoom = 11)
+Denver1
+denver2<-fortify(Denver1)
+denver2
+Denver1+
+  geom_path(aes(x=first_cont$GEO_LON, y=first_cont$GEO_LAT))+
+  geom_point(data=first_cont, aes(x=GEO_LON, y=GEO_LAT, color=factor(clust)), size=4)
+  scale_color_discrete("Cluster")+
+  coord_fixed()
+d3      <- earth.dist(first_cont)   # distance matrix
+hc3     <- hclust(d2)      # hierarchical clustering
+plot(hc3)                 # dendrogram suggests 4 clusters
+clust2 <- cutree(hc3,k=7)
+clust2
+Denver1+
+  geom_path(aes(x=first_cont$GEO_LON, y=first_cont$GEO_LAT))+
+  geom_point(data=first_cont, aes(x=GEO_LON, y=GEO_LAT, color=factor(clust2)), size=7)+
+  scale_color_discrete("Cluster")+
+  coord_fixed()
+
+```
+With just murder and aggravated assault
+
+```{r}
+datafinal=subset(finaldata, OFFENSE_CATEGORY_ID=="aggravated-assault" | OFFENSE_CATEGORY_ID=="murders")
+na.omit(datafinal)
+library(geosphere)
+head(datafinal)
+
+plot(datafinal$GEO_LON,datafinal$GEO_LAT)
+dff= as.matrix(dist(cbind(datafinal$GEO_LON,datafinal$GEO_LAT)))
+dff=as.dist(dff)
+hcf<-hclust(dff)
+plot(hcf)#Shows cluster diagram 
+datafinal$clust <- cutree(hcf,k=7)#7 points, for the 7 districts
+plot(finaldata$GEO_LON,datafinal$GEO_LAT, col=c("red","blue","green")[datafinal$clust],pch=19)
+library(fields)
+distf <- rdist.earth(datafinal,miles = F,R=6371) 
+fitf <- hclust(as.dist(distf), method = "single")
+clustersf <- cutree(fitf,h = 1000) 
+plot(datafinal$GEO_LON, datafinal$GEO_LAT, col = clusters, pch = 20)
+library(geosphere)
+library(fossil)
+df      <- earth.dist(datafinal)   # distance matrix
+hcf     <- hclust(df)      # hierarchical clustering
+plot(hcf)                 # dendrogram suggests 4 clusters
+clustf <- cutree(hcf,k=4)
+clustf
+
+library(rdgal)
+library(ggplot2)
+library(ggmap)
+map1 <-qmap('Denver', zoom=15)
+Denverf <- qmap("Denver", zoom = 11)
+Denverf
+library(ggplot2)
+denver2f<-fortify(Denverf)
+denver2f
+Denverf+
+  geom_path(aes(x=datafinal$GEO_LON, y=datafinal$GEO_LAT))+
+  geom_point(data=datafinal, aes(x=GEO_LON, y=GEO_LAT, color=factor(clustf)), size=4)+
+  scale_color_discrete("Cluster")+
+  coord_fixed()
+df3      <- earth.dist(datafinal)   # distance matrix
+hcf3     <- hclust(df3)      # hierarchical clustering
+plot(hc3)                 # dendrogram suggests 4 clusters
+clustf2 <- cutree(hcf3,k=7)
+clustf2
+Denver1+
+  geom_path(aes(x=datafinal$GEO_LON, y=datafinal$GEO_LAT))+
+  geom_point(data=datafinal, aes(x=GEO_LON, y=GEO_LAT, color=factor(clustf2)), size=7)+
+  scale_color_discrete("Cluster")+
+  coord_fixed()
+
+```
+In addition to clustering,I want to do another modeling technique. I will use a tree.
+
+```{r}
+murder<-subset(finaldata, OFFENSE_CATEGORY_ID=="murder")
+head(murder)
+na.omit(murder)
+dim(murder)
+head(murder)
+install.packages("randomForest")
+library(randomForest)
+names(finaldata)
+train=sample(1:nrow(murder), nrow(murder)/2)
+forest=randomForest(OFFENSE_CODE~ OFFENSE_CATEGORY_ID + DISTRICT_ID + PRECINCT_ID + GEO_LON + GEO_LAT,data=murder, subset=train, mtry=15, importance= TRUE)
+forest
+murdertest=murder[-train,"OFFENSE_CODE"]
+y=predict(forest, newdata=murder[-train,])
+plot(y,murdertest)
+mean((y-murdertest)^2)# This does not really do much, will want to do classification for any really good results
+#Let's see if we can classify murder by the district I live in
+library(tree)
+
+
+murderclass=ifelse(DISTRICT_ID=="4","No","Yes")
+start=data.frame(murder,murderclass)
+head(murder)
+head(start)
+summary(start)
+treestart=tree(murderclass~., start)
+summary(treestart)
+plot(treestart)
+text(treestart)
+treestart
+dim(start)
+train=sample(1:nrow(start))
+treestart.test=start[-train,]
+id=start[-train]
+id
+tree1=tree(murderclass~.-DISTRICT_ID, start,subset=train)
+tree.pred=predict(tree1,id,type="class")
+table(tree.pred,id)
+#.74#It looks like this is the percentage correct
+rm(list=ls())
+#For a prediction, let's look at logistic
+crime2 <-read.csv("C:/Users/BandC/Desktop/Predictive Model/crime2.csv")
+
+                  head(crime2)
+na.omit(crime2)
+dim(crime2)
+str(crime2)
+crime2$GEO_X<-NULL
+crime2$GEO_Y<-NULL
+crime2$LAST_OCCURENCE_DATE<-NULL
+crime2$FIRST_OCCURENCE_DATE<-NULL
+crime2$IS_TRAFFIC<-NULL
+crime3<-subset(crime2,crime2$DISTRICT_ID==4 & NEIGHBORHOOD_ID=="athmar-park")
+head(crime3)
+crime3$IS_CRIME<-as.factor(crime3$IS_CRIME)
+str(crime3)
+dim(crime3)
+attach(crime3)
+train_ind = sample(nrow(crime3), nrow(crime3)/2) 
+train_data = crime3[train_ind,]
+dim(train_data)
+test_data = crime3[-train_ind,]
+dim(test_data)
+
+yes = glm(IS_CRIME~ OFFENSE_CATEGORY_ID + REPORTED_DATE + OFFENSE_CATEGORY_ID, data=train_data, family=binomial(link='logit'))
+summary(yes)
+predict = predict(yes, type="response")
+predict[1:10]
+contrasts(crime3$IS_CRIME)
+glm.pred=rep("no",1577)
+glm.pred[predict>.5]="yes"
+table(glm.pred,train_data$IS_CRIME)##glm.pred   no  yes, not great 
+     no   343    4
+     yes    2 2428
+
+
+
+
+```
+
+Based on the analsis, the clustering was very productive as it used longitude and latitude to cluster. This approach with using geographical distances was valuable. The logistic approach did not seem to work well and was not the best model. 
+```
+
